@@ -52,6 +52,8 @@
   #layerToggle { display: flex; background: #1f2430; border-radius: 999px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
   #layerToggle button { background: transparent; color: #ccc; border: none; padding: 10px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
   #layerToggle button.active { background: #3a4a6b; color: #fff; }
+  #rightControls { display: flex; gap: 8px; }
+  #btnColorMode.active { background: #6b3a8f; }
 
   #infoPanel {
     background: #14161c; color: #eee; padding: 12px 18px; max-height: 34vh; overflow-y: auto;
@@ -124,7 +126,10 @@
             <button id="btnFederal" class="active">Federal</button>
             <button id="btnProvincial">Provincial</button>
           </div>
-          <button id="btnTrack" class="pill-button">Start tracking</button>
+          <div id="rightControls">
+            <button id="btnColorMode" class="pill-button" title="Colour ridings by party">🎨</button>
+            <button id="btnTrack" class="pill-button">Start tracking</button>
+          </div>
         </div>
       </div>
       <div id="infoPanel">
@@ -303,9 +308,62 @@ function ridingDisplayName(feature) {
 function styleFor(level) {
   return {
     color: level === 'federal' ? '#4a90d9' : '#d98a4a',
-    weight: 1.5, fillOpacity: 0.08,
+    weight: 2.2, opacity: 1, fillOpacity: 0.08,
     fillColor: level === 'federal' ? '#4a90d9' : '#d98a4a'
   };
+}
+
+// ---- Colour-by-party mode ----
+let colorByParty = false;
+
+const PARTY_COLORS = {
+  'liberal': '#d63031',
+  'conservative': '#2e5fa3',
+  'ndp': '#e67e22',
+  'green': '#27ae60',
+  'green party': '#27ae60',
+  'bloc quebecois': '#16a085',
+  'independent': '#888888',
+  'centrebc': '#d63031',
+  'onebc': '#d4af37'
+};
+const PARTY_COLOR_FALLBACK = '#cccccc';
+
+function normalizeParty(party) {
+  return (party || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+    .toLowerCase().trim();
+}
+
+function colorForParty(party) {
+  return PARTY_COLORS[normalizeParty(party)] || PARTY_COLOR_FALLBACK;
+}
+
+function partyStyleFor() {
+  return { color: '#000000', weight: 2.2, opacity: 1, fillOpacity: 0.35 };
+}
+
+async function applyLayerColoring(geoJsonLayer, level) {
+  const userData = await loadUserData();
+  const baseline = PRELOADED_DATA[level] || {};
+  const overrides = userData[level] || {};
+
+  geoJsonLayer.eachLayer(layer => {
+    if (colorByParty) {
+      const name = ridingDisplayName(layer.feature);
+      const slug = slugify(name);
+      const entry = overrides[slug] || baseline[slug];
+      const fillColor = entry ? colorForParty(entry.party) : PARTY_COLOR_FALLBACK;
+      layer.setStyle(Object.assign({ fillColor }, partyStyleFor()));
+    } else {
+      layer.setStyle(styleFor(level));
+    }
+  });
+}
+
+async function refreshColoring() {
+  await applyLayerColoring(federalLayer, 'federal');
+  await applyLayerColoring(provincialLayer, 'provincial');
 }
 
 async function buildPopupContent(name, level) {
@@ -351,6 +409,11 @@ function initMap() {
   document.getElementById('btnProvincial').addEventListener('click', () => setActiveLevel('provincial'));
   document.getElementById('btnTrack').addEventListener('click', () => {
     if (watchId === null) startTracking(); else stopTracking();
+  });
+  document.getElementById('btnColorMode').addEventListener('click', async () => {
+    colorByParty = !colorByParty;
+    document.getElementById('btnColorMode').classList.toggle('active', colorByParty);
+    await refreshColoring();
   });
 }
 
