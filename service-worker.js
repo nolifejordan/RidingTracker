@@ -1,12 +1,14 @@
 // Bumping CACHE_NAME forces a refresh of all cached files on next load.
-const CACHE_NAME = 'riding-tracker-v1';
+const CACHE_NAME = 'riding-tracker-v2';
 
-// Everything the app needs to run is either this shell (data is baked in
-// as JS, not fetched separately) or the map tiles, which come from
-// OpenStreetMap and are cached opportunistically as they're requested.
+// The app shell now includes the three fetched data files, not just the
+// HTML -- these are what make the app usable offline after first load.
 const APP_SHELL = [
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './federal.geojson',
+  './provincial.geojson',
+  './riding-data.json'
 ];
 
 self.addEventListener('install', (event) => {
@@ -28,7 +30,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
 
-  // App shell: cache-first, so the app itself opens instantly offline.
+  // App shell (including the data files): cache-first, so the app and its
+  // boundary/riding data are available offline after the first successful load.
   if (APP_SHELL.some((path) => url.endsWith(path.replace('./', '')))) {
     event.respondWith(
       caches.match(event.request).then((cached) => cached || fetch(event.request))
@@ -36,10 +39,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Map tiles (OpenStreetMap): cache-first with network fallback, so
-  // previously-viewed areas keep working offline; new areas still need a
-  // connection the first time they're viewed.
-  if (url.includes('tile.openstreetmap.org')) {
+  // Map tiles (Esri Streets/Satellite): cache-first with network fallback,
+  // so previously-viewed areas keep working offline.
+  if (url.includes('arcgisonline.com')) {
     event.respondWith(
       caches.open(CACHE_NAME).then((cache) =>
         cache.match(event.request).then((cached) => {
