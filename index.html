@@ -368,10 +368,48 @@ function styleFor(level) {
 let colorByParty = false;
 
 const PARTY_COLORS = {
-  'liberal': '#d63031', 'conservative': '#2e5fa3', 'ndp': '#e67e22',
-  'green': '#27ae60', 'green party': '#27ae60', 'bloc quebecois': '#16a085',
-  'independent': '#888888', 'centrebc': '#d63031', 'onebc': '#d4af37',
-  'progressive conservative': '#2e5fa3', 'non-partisan consensus': '#555555'
+  // Federal / most provinces
+  'liberal': '#d63031',
+  'conservative': '#2e5fa3',           // federal Conservative + BC Conservative (unchanged)
+  'green': '#27ae60', 'green party': '#27ae60',
+  'bloc quebecois': '#16a085',
+  'independent': '#888888',
+  'non-partisan consensus': '#555555', // NWT / Nunavut consensus government (darker than Independent)
+
+  // NDP -- synonym bank so "NDP" / "New Democratic" / "New Democratic Party"
+  // (used inconsistently across different provinces' source data) all land
+  // on the same colour without needing to rename anything at the source.
+  'ndp': '#e67e22',
+  'new democratic': '#e67e22',
+  'new democratic party': '#e67e22',
+
+  // Progressive Conservative parties (ON, NS, NL, NB, and Manitoba's "PC"
+  // abbreviation) -- a lighter, slightly purpler blue than federal/BC Conservative.
+  'progressive conservative': '#5e6fc4',
+  'pc': '#5e6fc4',
+
+  // Alberta
+  'ucp': '#16465a',                    // United Conservative Party
+  'ptp': '#4aa3d1',                    // Progressive Tory Party -- sky blue
+
+  // BC-only parties
+  'centrebc': '#d63031',
+  'onebc': '#d4af37',
+
+  // Yukon Party -- slightly lighter than UCP's teal-green-blue
+  'yukon party': '#2f6e86',
+
+  // Saskatchewan Party -- dark green
+  'saskatchewan party': '#1e5631',
+
+  // Quebec (populated once the Oct 5 2026 election fills these seats)
+  'pcq': '#4b3d72',                    // dark, mid-saturation purplish blue
+  'qs': '#e67e22',                     // Québec solidaire -- same as NDP
+  'quebec solidaire': '#e67e22',
+  'pq': '#16a085',                     // Parti Québécois -- same as Bloc
+  'parti quebecois': '#16a085',
+  'caq': '#0e5c73',                    // Coalition Avenir Québec -- deeper blue-teal
+  'coalition avenir quebec': '#0e5c73',
 };
 const PARTY_COLOR_FALLBACK = '#cccccc';
 
