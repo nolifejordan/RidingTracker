@@ -9,7 +9,6 @@
 <title>Riding Tracker</title>
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-groupedlayercontrol@2.0.0/dist/leaflet.groupedlayercontrol.min.css" />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
@@ -50,7 +49,7 @@
 
   #topbar {
     position: absolute; top: 10px; left: 10px; right: 10px; z-index: 1000;
-    display: flex; justify-content: flex-end; gap: 8px; pointer-events: none;
+    display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; pointer-events: none;
   }
   #topbar > * { pointer-events: auto; }
 
@@ -61,6 +60,25 @@
   }
   .pill-button.tracking-on { background: #c0392b; }
   #btnColorMode.active { background: #6b3a8f; }
+  #btnLayers.active { background: #3a4a6b; }
+
+  #layersPanel {
+    position: absolute; top: 56px; right: 10px; z-index: 1000;
+    background: #181b22; border-radius: 12px; padding: 12px 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4); max-height: 60vh; overflow-y: auto;
+    min-width: 180px;
+  }
+  #layersPanel.hidden { display: none; }
+  .layers-group-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
+    color: #8ea0c9; margin: 10px 0 4px;
+  }
+  .layers-group-title:first-child { margin-top: 0; }
+  .layer-checkbox {
+    display: flex; align-items: center; gap: 8px; font-size: 13px; color: #eee;
+    padding: 4px 0; cursor: pointer;
+  }
+  .layer-checkbox input { width: 16px; height: 16px; cursor: pointer; }
 
   #infoPanel {
     background: #14161c; color: #eee; padding: 12px 18px; max-height: 40vh; overflow-y: auto;
@@ -148,8 +166,17 @@
     <div id="map-view" class="view active">
       <div id="map">
         <div id="topbar">
+          <button id="btnLayers" class="pill-button" title="Choose layers">🗂️ Layers</button>
           <button id="btnColorMode" class="pill-button" title="Colour ridings by party">🎨</button>
           <button id="btnTrack" class="pill-button">Start tracking</button>
+        </div>
+        <div id="layersPanel" class="hidden">
+          <div class="layers-group-title">Federal</div>
+          <label class="layer-checkbox"><input type="checkbox" data-layer="federal:Canada" checked> Canada</label>
+          <label class="layer-checkbox"><input type="checkbox" data-layer="federal:US House"> US House</label>
+          <label class="layer-checkbox"><input type="checkbox" data-layer="federal:US Senate"> US Senate</label>
+          <div class="layers-group-title">Provincial</div>
+          <div id="provinceCheckboxes"></div>
         </div>
       </div>
       <div id="infoPanel">
@@ -258,7 +285,6 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/leaflet-groupedlayercontrol@2.0.0/dist/leaflet.groupedlayercontrol.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
 <script>
 /* ============== Data loading ============== */
@@ -547,34 +573,49 @@ function initMap() {
 
   caFederalLayer.addTo(map); // default: only Canada Federal visible
 
-  const baseMaps = { 'Streets': streetsLayer, 'Satellite': satelliteLayer };
-  const groupedOverlays = {
-    'Federal': {
-      'Canada': caFederalLayer,
-      'US House': usHouseLayer,
-      'US Senate': usSenateLayer,
-    },
-    'Provincial': provinceGroup,
-  };
-  L.control.groupedLayers(baseMaps, groupedOverlays, { position: 'bottomleft', collapsed: true, groupCheckboxes: false }).addTo(map);
+  // Plain built-in Leaflet control for the basemap only (no third-party plugin).
+  L.control.layers({ 'Streets': streetsLayer, 'Satellite': satelliteLayer }, null, { position: 'bottomleft', collapsed: true }).addTo(map);
 
-  map.on('overlayadd', (e) => {
-    if (e.name === 'Canada') layerVisible.caFederal = true;
-    else if (e.name === 'US House') layerVisible.usHouse = true;
-    else if (e.name === 'US Senate') layerVisible.usSenate = true;
-    else if (e.name in layerVisible.provinces) layerVisible.provinces[e.name] = true;
-    updateInfoPanelVisibility();
-    if (userMarker) updateRidingInfo(userMarker.getLatLng().lat, userMarker.getLatLng().lng);
+  // Custom layers panel: plain checkboxes wired directly to map.addLayer/
+  // removeLayer, so there's no dependency on any third-party control plugin.
+  const FEDERAL_LAYER_BY_NAME = { 'Canada': caFederalLayer, 'US House': usHouseLayer, 'US Senate': usSenateLayer };
+  const FEDERAL_FLAG_BY_NAME = { 'Canada': 'caFederal', 'US House': 'usHouse', 'US Senate': 'usSenate' };
+
+  document.querySelectorAll('#layersPanel input[data-layer^="federal:"]').forEach(input => {
+    const name = input.dataset.layer.slice('federal:'.length);
+    input.addEventListener('change', () => {
+      const layer = FEDERAL_LAYER_BY_NAME[name];
+      const flag = FEDERAL_FLAG_BY_NAME[name];
+      if (input.checked) { map.addLayer(layer); layerVisible[flag] = true; }
+      else { map.removeLayer(layer); layerVisible[flag] = false; }
+      updateInfoPanelVisibility();
+      if (userMarker) updateRidingInfo(userMarker.getLatLng().lat, userMarker.getLatLng().lng);
+    });
   });
-  map.on('overlayremove', (e) => {
-    if (e.name === 'Canada') layerVisible.caFederal = false;
-    else if (e.name === 'US House') layerVisible.usHouse = false;
-    else if (e.name === 'US Senate') layerVisible.usSenate = false;
-    else if (e.name in layerVisible.provinces) layerVisible.provinces[e.name] = false;
-    updateInfoPanelVisibility();
-  });
+
+  const provinceContainer = document.getElementById('provinceCheckboxes');
+  for (const prov of Object.keys(provinceGroup).sort()) {
+    const label = document.createElement('label');
+    label.className = 'layer-checkbox';
+    label.innerHTML = `<input type="checkbox" data-province="${prov}"> ${prov}`;
+    provinceContainer.appendChild(label);
+    label.querySelector('input').addEventListener('change', (e) => {
+      const layer = provinceGroup[prov];
+      if (e.target.checked) { map.addLayer(layer); layerVisible.provinces[prov] = true; }
+      else { map.removeLayer(layer); layerVisible.provinces[prov] = false; }
+      updateInfoPanelVisibility();
+      if (userMarker) updateRidingInfo(userMarker.getLatLng().lat, userMarker.getLatLng().lng);
+    });
+  }
+
   updateInfoPanelVisibility();
 
+  document.getElementById('btnLayers').addEventListener('click', () => {
+    const panel = document.getElementById('layersPanel');
+    const btn = document.getElementById('btnLayers');
+    panel.classList.toggle('hidden');
+    btn.classList.toggle('active', !panel.classList.contains('hidden'));
+  });
   document.getElementById('btnTrack').addEventListener('click', () => {
     if (watchId === null) startTracking(); else stopTracking();
   });
