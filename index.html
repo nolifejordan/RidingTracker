@@ -9,6 +9,7 @@
 <title>Riding Tracker</title>
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-groupedlayercontrol@2.0.0/dist/leaflet.groupedlayercontrol.min.css" />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
@@ -49,7 +50,7 @@
 
   #topbar {
     position: absolute; top: 10px; left: 10px; right: 10px; z-index: 1000;
-    display: flex; justify-content: space-between; gap: 8px; pointer-events: none;
+    display: flex; justify-content: flex-end; gap: 8px; pointer-events: none;
   }
   #topbar > * { pointer-events: auto; }
 
@@ -59,35 +60,34 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.25); cursor: pointer;
   }
   .pill-button.tracking-on { background: #c0392b; }
-
-  #layerToggle { display: flex; background: #1f2430; border-radius: 999px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
-  #layerToggle button { background: transparent; color: #ccc; border: none; padding: 10px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
-  #layerToggle button.active { background: #3a4a6b; color: #fff; }
-  #rightControls { display: flex; gap: 8px; }
   #btnColorMode.active { background: #6b3a8f; }
 
   #infoPanel {
-    background: #14161c; color: #eee; padding: 12px 18px; max-height: 34vh; overflow-y: auto;
+    background: #14161c; color: #eee; padding: 12px 18px; max-height: 40vh; overflow-y: auto;
     border-top: 1px solid #23262e;
   }
   #infoPanel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #8ea0c9; margin-bottom: 8px; }
-  .riding-row { padding: 6px 0; border-bottom: 1px solid #2a2e38; }
+  .riding-row { padding: 6px 0; border-bottom: 1px solid #2a2e38; display: none; }
+  .riding-row.shown { display: block; }
   .riding-row:last-of-type { border-bottom: none; }
   .riding-label { font-size: 11px; color: #8a8f9c; text-transform: uppercase; letter-spacing: 0.04em; }
   .riding-value { font-size: 14px; font-weight: 600; margin-top: 2px; }
   .riding-sub { font-size: 12px; color: #a9afbd; margin-top: 2px; }
   .riding-dispute { font-size: 12px; color: #f0c674; margin-top: 4px; }
   .placeholder { color: #5a5f6c; font-style: italic; font-weight: 400; }
+  .empty-hint { font-size: 12px; color: #5a5f6c; font-style: italic; }
   #coords { display: flex; justify-content: space-between; font-size: 11px; color: #6f7585; margin-top: 6px; }
   #statusMsgMap { font-size: 12px; color: #f0c674; margin-bottom: 4px; min-height: 14px; }
 
   .leaflet-popup-content-wrapper { background: #181b22; color: #eee; border-radius: 10px; }
   .leaflet-popup-tip { background: #181b22; }
-  .leaflet-control-layers { background: #181b22 !important; color: #eee !important; border-radius: 10px !important; border: none !important; box-shadow: 0 2px 8px rgba(0,0,0,0.35) !important; }
+  .leaflet-control-layers { background: #181b22 !important; color: #eee !important; border-radius: 10px !important; border: none !important; box-shadow: 0 2px 8px rgba(0,0,0,0.35) !important; max-width: 220px; }
   .leaflet-control-layers-toggle { filter: invert(1) brightness(1.6); }
   .leaflet-control-layers-expanded { padding: 10px 14px !important; }
-  .leaflet-control-layers label { color: #eee !important; font-size: 13px; margin: 4px 0; }
-  .leaflet-control-layers-separator { border-top: 1px solid #2a2e38 !important; }
+  .leaflet-control-layers label { color: #eee !important; font-size: 13px; margin: 5px 0; display: flex; align-items: center; gap: 6px; }
+  .leaflet-control-layers-separator { border-top: 1px solid #2a2e38 !important; margin: 6px 0 !important; }
+  .leaflet-control-layers-group-name { color: #8ea0c9 !important; font-size: 11px !important; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-top: 6px; }
+  .leaflet-control-layers-scrollbar { max-height: 320px; overflow-y: auto; }
   .popup-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
   .popup-sub { font-size: 12px; color: #a9afbd; }
   .popup-notes { font-size: 12px; color: #ccc; margin-top: 6px; }
@@ -104,10 +104,10 @@
     background: #0f1115; color: #e8e8e8; font-size: 14px;
   }
   textarea { resize: vertical; min-height: 60px; }
-  .level-toggle { display: flex; gap: 8px; }
+  .level-toggle { display: flex; gap: 6px; flex-wrap: wrap; }
   .level-toggle button {
-    flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #2a2e38;
-    background: #0f1115; color: #9aa0ad; font-size: 14px; font-weight: 600; cursor: pointer;
+    flex: 1; min-width: 40%; padding: 10px 6px; border-radius: 8px; border: 1px solid #2a2e38;
+    background: #0f1115; color: #9aa0ad; font-size: 13px; font-weight: 600; cursor: pointer;
   }
   .level-toggle button.active { background: #3a4a6b; color: #fff; border-color: #3a4a6b; }
   .btn-row { display: flex; gap: 8px; margin-top: 16px; }
@@ -129,6 +129,9 @@
   .entry-actions button.delete { color: #e08a8a; }
   .empty-note { font-size: 13px; color: #5a5f6c; font-style: italic; }
   #importFile { display: none; }
+  .senate-pair { display: flex; gap: 8px; }
+  .senate-pair > div { flex: 1; }
+  #senateFields.hidden, #singleFields.hidden { display: none; }
 </style>
 </head>
 <body>
@@ -145,30 +148,37 @@
     <div id="map-view" class="view active">
       <div id="map">
         <div id="topbar">
-          <div id="layerToggle">
-            <button id="btnFederal" class="active">Federal</button>
-            <button id="btnProvincial">Provincial</button>
-          </div>
-          <div id="rightControls">
-            <button id="btnColorMode" class="pill-button" title="Colour ridings by party">🎨</button>
-            <button id="btnTrack" class="pill-button">Start tracking</button>
-          </div>
+          <button id="btnColorMode" class="pill-button" title="Colour ridings by party">🎨</button>
+          <button id="btnTrack" class="pill-button">Start tracking</button>
         </div>
       </div>
       <div id="infoPanel">
         <div id="statusMsgMap"></div>
         <h2>Your Location</h2>
-        <div class="riding-row">
-          <div class="riding-label">Federal Riding</div>
-          <div class="riding-value placeholder" id="federalName">Start tracking to see your riding</div>
-          <div class="riding-sub" id="federalDetail"></div>
+        <div id="noLayersHint" class="empty-hint">No layers turned on — use the layers control on the map to pick what to show.</div>
+
+        <div class="riding-row" id="row-caFederal">
+          <div class="riding-label">Canada — Federal</div>
+          <div class="riding-value placeholder" id="caFederalName">—</div>
+          <div class="riding-sub" id="caFederalDetail"></div>
         </div>
-        <div class="riding-row">
-          <div class="riding-label">Provincial Riding</div>
-          <div class="riding-value placeholder" id="provincialName">Start tracking to see your riding</div>
-          <div class="riding-sub" id="provincialDetail"></div>
-          <div class="riding-dispute" id="provincialDispute"></div>
+        <div class="riding-row" id="row-caProvincial">
+          <div class="riding-label">Canada — Provincial</div>
+          <div class="riding-value placeholder" id="caProvincialName">—</div>
+          <div class="riding-sub" id="caProvincialDetail"></div>
+          <div class="riding-dispute" id="caProvincialDispute"></div>
         </div>
+        <div class="riding-row" id="row-usHouse">
+          <div class="riding-label">US House</div>
+          <div class="riding-value placeholder" id="usHouseName">—</div>
+          <div class="riding-sub" id="usHouseDetail"></div>
+        </div>
+        <div class="riding-row" id="row-usSenate">
+          <div class="riding-label">US Senate</div>
+          <div class="riding-value placeholder" id="usSenateName">—</div>
+          <div class="riding-sub" id="usSenateDetail"></div>
+        </div>
+
         <div id="coords">
           <span id="coordText">lat: — , lon: —</span>
           <span id="accuracyText">accuracy: —</span>
@@ -178,31 +188,48 @@
 
     <div id="data-view" class="view">
       <h1>Riding Data Entry</h1>
-      <div class="subtitle">MP/MLA, party, and term are preloaded where available — pick a riding and add your own notes.</div>
+      <div class="subtitle">Preloaded where available — pick a riding and add your own notes.</div>
       <div id="backendMsg"></div>
 
       <div class="card">
         <label>Level</label>
         <div class="level-toggle">
-          <button id="btnLevelFederal" class="active" type="button">Federal</button>
-          <button id="btnLevelProvincial" type="button">Provincial</button>
+          <button id="btnLevelCaFed" class="active" type="button">CA Federal</button>
+          <button id="btnLevelCaProv" type="button">CA Provincial</button>
+          <button id="btnLevelUsHouse" type="button">US House</button>
+          <button id="btnLevelUsSenate" type="button">US Senate</button>
         </div>
 
         <label for="ridingSelect">Riding</label>
         <select id="ridingSelect"></select>
         <div id="sourceMsg"></div>
 
-        <label id="repNameLabel">MP name</label>
-        <input type="text" id="repName">
+        <div id="singleFields">
+          <label id="repNameLabel">Representative</label>
+          <input type="text" id="repName">
+          <label for="party">Party</label>
+          <input type="text" id="party">
+        </div>
 
-        <label for="party">Party</label>
-        <input type="text" id="party">
+        <div id="senateFields" class="hidden">
+          <label>Senators</label>
+          <div class="senate-pair">
+            <div>
+              <input type="text" id="sen1Name" placeholder="Senator 1 name">
+              <input type="text" id="sen1Party" placeholder="Party" style="margin-top:6px;">
+            </div>
+            <div>
+              <input type="text" id="sen2Name" placeholder="Senator 2 name">
+              <input type="text" id="sen2Party" placeholder="Party" style="margin-top:6px;">
+            </div>
+          </div>
+        </div>
 
         <label for="termStart">Term start</label>
         <input type="date" id="termStart">
 
         <label for="notes">Notes / characteristics</label>
-        <textarea id="notes" placeholder="Urban core riding, includes Parliament Hill, historically..."></textarea>
+        <textarea id="notes"></textarea>
 
         <div class="btn-row">
           <button class="primary" id="btnSave" type="button">Save entry</button>
@@ -212,7 +239,7 @@
       </div>
 
       <div class="card">
-        <div class="entry-list-header" id="listHeader">Your customized federal ridings</div>
+        <div class="entry-list-header" id="listHeader">Your customized entries</div>
         <div id="entryList"></div>
         <div class="btn-row">
           <button class="secondary" id="btnExport" type="button">Export your edits (.json)</button>
@@ -231,36 +258,34 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-groupedlayercontrol@2.0.0/dist/leaflet.groupedlayercontrol.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
 <script>
 /* ============== Data loading ============== */
-let FEDERAL_GEOJSON, PROVINCIAL_GEOJSON, PRELOADED_DATA;
+let FEDERAL_GEOJSON, PROVINCIAL_GEOJSON, US_HOUSE_GEOJSON, DATA;
 
 async function loadAppData() {
   const loadingText = document.getElementById('loadingText');
   const loadingError = document.getElementById('loadingError');
   try {
-    loadingText.textContent = 'Loading federal boundaries…';
-    const fedResp = await fetch('federal.geojson');
-    if (!fedResp.ok) throw new Error('federal.geojson: ' + fedResp.status);
-    FEDERAL_GEOJSON = await fedResp.json();
+    loadingText.textContent = 'Loading Canada federal boundaries…';
+    FEDERAL_GEOJSON = await (await fetch('federal.geojson')).json();
 
-    loadingText.textContent = 'Loading provincial boundaries…';
-    const provResp = await fetch('provincial.geojson');
-    if (!provResp.ok) throw new Error('provincial.geojson: ' + provResp.status);
-    PROVINCIAL_GEOJSON = await provResp.json();
+    loadingText.textContent = 'Loading Canada provincial boundaries…';
+    PROVINCIAL_GEOJSON = await (await fetch('provincial.geojson')).json();
 
-    loadingText.textContent = 'Loading MP/MLA data…';
-    const dataResp = await fetch('riding-data.json');
-    if (!dataResp.ok) throw new Error('riding-data.json: ' + dataResp.status);
-    PRELOADED_DATA = await dataResp.json();
+    loadingText.textContent = 'Loading US House districts…';
+    US_HOUSE_GEOJSON = await (await fetch('us-house.geojson')).json();
+
+    loadingText.textContent = 'Loading representative data…';
+    DATA = await (await fetch('riding-data.json')).json();
 
     document.getElementById('loadingScreen').classList.add('hidden');
     document.getElementById('app').style.display = 'flex';
     bootApp();
   } catch (e) {
     loadingText.textContent = 'Failed to load app data.';
-    loadingError.textContent = 'This app needs to be served from a real host (not opened as a bare local file) so it can fetch its data files. Error: ' + e.message;
+    loadingError.textContent = 'This app needs to be served from a real host (not opened as a bare local file). Error: ' + e.message;
   }
 }
 
@@ -271,32 +296,20 @@ let backendName = null;
 async function detectBackend() {
   if (backendName) return backendName;
   if (typeof window.storage !== 'undefined' && window.storage && typeof window.storage.set === 'function') {
-    try {
-      await window.storage.set('__probe__', '1', false);
-      backendName = 'claude';
-      return backendName;
-    } catch (e) {}
+    try { await window.storage.set('__probe__', '1', false); backendName = 'claude'; return backendName; }
+    catch (e) {}
   }
-  try {
-    localStorage.setItem('__probe__', '1');
-    localStorage.removeItem('__probe__');
-    backendName = 'local';
-    return backendName;
-  } catch (e) {}
+  try { localStorage.setItem('__probe__', '1'); localStorage.removeItem('__probe__'); backendName = 'local'; return backendName; }
+  catch (e) {}
   backendName = 'memory';
   return backendName;
 }
-
 async function storageGet(key) {
   const backend = await detectBackend();
-  if (backend === 'claude') {
-    try { const r = await window.storage.get(key, false); return r ? r.value : null; }
-    catch (e) { return null; }
-  }
+  if (backend === 'claude') { try { const r = await window.storage.get(key, false); return r ? r.value : null; } catch (e) { return null; } }
   if (backend === 'local') return localStorage.getItem(key);
   return memoryFallback[key] || null;
 }
-
 async function storageSet(key, value) {
   const backend = await detectBackend();
   if (backend === 'claude') { await window.storage.set(key, value, false); return; }
@@ -304,28 +317,27 @@ async function storageSet(key, value) {
   memoryFallback[key] = value;
 }
 
-const STORAGE_KEY = 'riding-data';
-
+const STORAGE_KEY = 'riding-data-edits';
 function slugify(name) {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
+// Levels: caFederal, caProvincial, usHouse, usSenate -- all stored under one object
 async function loadUserData() {
   try {
     const raw = await storageGet(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch (e) {}
-  return { federal: {}, provincial: {} };
+  return { caFederal: {}, caProvincial: {}, usHouse: {}, usSenate: {} };
 }
+async function saveUserData(data) { await storageSet(STORAGE_KEY, JSON.stringify(data)); }
 
-async function saveUserData(data) {
-  await storageSet(STORAGE_KEY, JSON.stringify(data));
-}
+// Map internal level keys to DATA's top-level keys (Canada kept its original names)
+const DATA_KEY = { caFederal: 'federal', caProvincial: 'provincial', usHouse: 'usHouse', usSenate: 'usSenate' };
 
-/* ============== App boot (runs once data is loaded) ============== */
+/* ============== App boot ============== */
 function bootApp() {
 
-/* ---- Tab switching ---- */
 const tabMap = document.getElementById('tabMap');
 const tabData = document.getElementById('tabData');
 const mapView = document.getElementById('map-view');
@@ -342,124 +354,135 @@ function showTab(tab) {
 tabMap.addEventListener('click', () => showTab('map'));
 tabData.addEventListener('click', () => showTab('data'));
 
-/* ---- Riding key helpers (federal vs provincial use different schemas) ---- */
 function ridingSlug(feature, level) {
-  if (level === 'federal') return slugify(feature.properties.ED_NAMEE || feature.properties.ED_NAME);
-  return feature.properties.slug; // provincial: pre-computed, province-namespaced
+  if (level === 'caFederal') return slugify(feature.properties.ED_NAMEE || feature.properties.ED_NAME);
+  if (level === 'caProvincial') return feature.properties.slug;
+  if (level === 'usHouse') return feature.properties.slug;
+  return null;
 }
 function ridingDisplayName(feature, level) {
-  if (level === 'federal') return feature.properties.ED_NAMEE || feature.properties.ED_NAME || 'Unknown riding';
-  return `${feature.properties.name} (${feature.properties.province})`;
+  if (level === 'caFederal') return feature.properties.ED_NAMEE || feature.properties.ED_NAME || 'Unknown riding';
+  if (level === 'caProvincial') return `${feature.properties.name} (${feature.properties.province})`;
+  if (level === 'usHouse') return feature.properties.name;
+  return feature.properties.name;
 }
 
-/* ============== Map view ============== */
-let map, userMarker, accuracyCircle, watchId = null;
-let activeLevel = 'federal';
-let federalLayer, provincialLayer;
+/* ============== Map ============== */
+let map;
+let userMarker, accuracyCircle, watchId = null;
+let caFederalLayer, usHouseLayer, usSenateLayer;
+let provinceLayers = {}; // province name -> Leaflet layer, one per province/territory
+const layerVisible = { caFederal: true, usHouse: false, usSenate: false, provinces: {} };
+
+const PROVINCE_COLOR = '#d98a4a'; // shared by all province layers (same "level" for data lookup)
 
 function styleFor(level) {
-  return {
-    color: level === 'federal' ? '#4a90d9' : '#d98a4a',
-    weight: 2.2, opacity: 1, fillOpacity: 0.08,
-    fillColor: level === 'federal' ? '#4a90d9' : '#d98a4a'
-  };
+  const colors = { caFederal: '#4a90d9', usHouse: '#6b9e5e', usSenate: '#9e5ea8' };
+  const color = level === 'caProvincial' ? PROVINCE_COLOR : colors[level];
+  return { color, weight: 2.2, opacity: 1, fillOpacity: 0.08, fillColor: color };
 }
 
 let colorByParty = false;
 
 const PARTY_COLORS = {
-  // Federal / most provinces
-  'liberal': '#d63031',
-  'conservative': '#2e5fa3',           // federal Conservative + BC Conservative (unchanged)
+  'liberal': '#d63031', 'conservative': '#2e5fa3',
   'green': '#27ae60', 'green party': '#27ae60',
   'bloc quebecois': '#16a085',
   'independent': '#888888',
-  'non-partisan consensus': '#555555', // NWT / Nunavut consensus government (darker than Independent)
-
-  // NDP -- synonym bank so "NDP" / "New Democratic" / "New Democratic Party"
-  // (used inconsistently across different provinces' source data) all land
-  // on the same colour without needing to rename anything at the source.
-  'ndp': '#e67e22',
-  'new democratic': '#e67e22',
-  'new democratic party': '#e67e22',
-
-  // Progressive Conservative parties (ON, NS, NL, NB, and Manitoba's "PC"
-  // abbreviation) -- a lighter, slightly purpler blue than federal/BC Conservative.
-  'progressive conservative': '#5e6fc4',
-  'pc': '#5e6fc4',
-
-  // Alberta
-  'ucp': '#16465a',                    // United Conservative Party
-  'ptp': '#4aa3d1',                    // Progressive Tory Party -- sky blue
-
-  // BC-only parties
-  'centrebc': '#d63031',
-  'onebc': '#d4af37',
-
-  // Yukon Party -- slightly lighter than UCP's teal-green-blue
+  'non-partisan consensus': '#555555',
+  'ndp': '#e67e22', 'new democratic': '#e67e22', 'new democratic party': '#e67e22',
+  'progressive conservative': '#5e6fc4', 'pc': '#5e6fc4',
+  'ucp': '#16465a', 'ptp': '#4aa3d1',
+  'centrebc': '#d63031', 'onebc': '#d4af37',
   'yukon party': '#2f6e86',
-
-  // Saskatchewan Party -- dark green
   'saskatchewan party': '#1e5631',
-
-  // Quebec (populated once the Oct 5 2026 election fills these seats)
-  'pcq': '#4b3d72',                    // dark, mid-saturation purplish blue
-  'qs': '#e67e22',                     // Québec solidaire -- same as NDP
-  'quebec solidaire': '#e67e22',
-  'pq': '#16a085',                     // Parti Québécois -- same as Bloc
-  'parti quebecois': '#16a085',
-  'caq': '#0e5c73',                    // Coalition Avenir Québec -- deeper blue-teal
-  'coalition avenir quebec': '#0e5c73',
+  'pcq': '#4b3d72', 'qs': '#e67e22', 'quebec solidaire': '#e67e22',
+  'pq': '#16a085', 'parti quebecois': '#16a085',
+  'caq': '#0e5c73', 'coalition avenir quebec': '#0e5c73',
+  // US parties -- darker, more saturated than a typical red/blue pair so
+  // they read as distinct from Canada's Liberal red / Conservative blue
+  // when both countries are shown together.
+  'republican': '#a3241c', 'democratic': '#173d78',
 };
 const PARTY_COLOR_FALLBACK = '#cccccc';
 
 function normalizeParty(party) {
   return (party || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
-function colorForParty(party) {
-  return PARTY_COLORS[normalizeParty(party)] || PARTY_COLOR_FALLBACK;
-}
-function partyStyleFor() {
-  return { color: '#000000', weight: 2.2, opacity: 1, fillOpacity: 0.35 };
+function colorForParty(party) { return PARTY_COLORS[normalizeParty(party)] || PARTY_COLOR_FALLBACK; }
+function partyStyleFor() { return { color: '#000000', weight: 2.2, opacity: 1, fillOpacity: 0.35 }; }
+
+function getEntry(level, slug, userData) {
+  if (!slug) return null;
+  const dataKey = DATA_KEY[level];
+  return (userData[level] && userData[level][slug]) || (DATA[dataKey] && DATA[dataKey][slug]) || null;
 }
 
 async function applyLayerColoring(geoJsonLayer, level) {
+  if (!geoJsonLayer) return;
   const userData = await loadUserData();
-  const baseline = PRELOADED_DATA[level] || {};
-  const overrides = userData[level] || {};
-
   geoJsonLayer.eachLayer(layer => {
     if (colorByParty) {
-      const slug = ridingSlug(layer.feature, level);
-      const entry = overrides[slug] || baseline[slug];
-      const fillColor = entry ? colorForParty(entry.party) : PARTY_COLOR_FALLBACK;
+      let fillColor = PARTY_COLOR_FALLBACK;
+      if (level === 'usSenate') {
+        const districtSlug = layer.feature.properties.slug;
+        const stateSlug = DATA.usDistrictToState[districtSlug];
+        const entry = getEntry('usSenate', stateSlug, userData);
+        if (entry && entry.senators && entry.senators[0]) fillColor = colorForParty(entry.senators[0].party);
+      } else {
+        const slug = ridingSlug(layer.feature, level);
+        const entry = getEntry(level, slug, userData);
+        if (entry) fillColor = colorForParty(entry.party);
+      }
       layer.setStyle(Object.assign({ fillColor }, partyStyleFor()));
     } else {
       layer.setStyle(styleFor(level));
     }
   });
 }
-
 async function refreshColoring() {
-  await applyLayerColoring(federalLayer, 'federal');
-  await applyLayerColoring(provincialLayer, 'provincial');
+  await applyLayerColoring(caFederalLayer, 'caFederal');
+  for (const prov of Object.keys(provinceLayers)) {
+    await applyLayerColoring(provinceLayers[prov], 'caProvincial');
+  }
+  await applyLayerColoring(usHouseLayer, 'usHouse');
+  await applyLayerColoring(usSenateLayer, 'usSenate');
 }
 
 async function buildPopupContent(feature, level) {
-  const data = await loadUserData();
+  const userData = await loadUserData();
   const name = ridingDisplayName(feature, level);
+
+  if (level === 'usSenate') {
+    const districtSlug = feature.properties.slug;
+    const stateSlug = DATA.usDistrictToState[districtSlug];
+    const entry = getEntry('usSenate', stateSlug, userData);
+    let html = `<div class="popup-title">${entry ? entry.name : name} (Senate)</div>`;
+    if (entry && entry.senators) {
+      entry.senators.forEach(s => {
+        html += `<div class="popup-sub">${s.rep} · ${s.party}</div>`;
+      });
+      if (userData.usSenate && userData.usSenate[stateSlug] && userData.usSenate[stateSlug].notes) {
+        html += `<div class="popup-notes">${userData.usSenate[stateSlug].notes}</div>`;
+      }
+    } else {
+      html += `<div class="popup-sub placeholder">No data</div>`;
+    }
+    return html;
+  }
+
   const slug = ridingSlug(feature, level);
-  const userEntry = data[level] ? data[level][slug] : null;
-  const baseEntry = PRELOADED_DATA[level] ? PRELOADED_DATA[level][slug] : null;
+  const userEntry = userData[level] ? userData[level][slug] : null;
+  const baseEntry = DATA[DATA_KEY[level]] ? DATA[DATA_KEY[level]][slug] : null;
   const entry = userEntry || baseEntry;
-  const repLabel = level === 'federal' ? 'MP' : 'MLA';
+  const repLabel = level === 'caFederal' ? 'MP' : level === 'caProvincial' ? 'MLA' : 'Rep';
 
   let html = `<div class="popup-title">${name}</div>`;
   if (entry) {
     html += `<div class="popup-sub">${entry.rep || '—'} (${repLabel}) · ${entry.party || '—'}${entry.termStart ? ' · since ' + entry.termStart : ''}</div>`;
     if (userEntry && userEntry.notes) html += `<div class="popup-notes">${userEntry.notes}</div>`;
   } else {
-    html += `<div class="popup-sub placeholder">Seat currently vacant / no data yet</div>`;
+    html += `<div class="popup-sub placeholder">Vacant / no data yet</div>`;
   }
 
   const disputedWith = feature.properties.disputedWith;
@@ -478,8 +501,18 @@ function attachPopups(geoJsonLayer, level) {
   });
 }
 
+function updateInfoPanelVisibility() {
+  document.getElementById('row-caFederal').classList.toggle('shown', layerVisible.caFederal);
+  const anyProvinceOn = Object.values(layerVisible.provinces).some(v => v);
+  document.getElementById('row-caProvincial').classList.toggle('shown', anyProvinceOn);
+  document.getElementById('row-usHouse').classList.toggle('shown', layerVisible.usHouse);
+  document.getElementById('row-usSenate').classList.toggle('shown', layerVisible.usSenate);
+  const anyOn = layerVisible.caFederal || anyProvinceOn || layerVisible.usHouse || layerVisible.usSenate;
+  document.getElementById('noLayersHint').style.display = anyOn ? 'none' : 'block';
+}
+
 function initMap() {
-  map = L.map('map', { zoomControl: true }).setView([54.0, -105.0], 4);
+  map = L.map('map', { zoomControl: true }).setView([45.0, -95.0], 4);
 
   const streetsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ', maxZoom: 19
@@ -488,16 +521,60 @@ function initMap() {
     attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community', maxZoom: 19
   });
   streetsLayer.addTo(map);
-  L.control.layers({ 'Streets': streetsLayer, 'Satellite': satelliteLayer }, null, { position: 'bottomleft', collapsed: true }).addTo(map);
 
-  federalLayer = L.geoJSON(FEDERAL_GEOJSON, { style: styleFor('federal') });
-  provincialLayer = L.geoJSON(PROVINCIAL_GEOJSON, { style: styleFor('provincial') });
-  attachPopups(federalLayer, 'federal');
-  attachPopups(provincialLayer, 'provincial');
-  federalLayer.addTo(map);
+  caFederalLayer = L.geoJSON(FEDERAL_GEOJSON, { style: styleFor('caFederal') });
+  usHouseLayer = L.geoJSON(US_HOUSE_GEOJSON, { style: styleFor('usHouse') });
+  usSenateLayer = L.geoJSON(US_HOUSE_GEOJSON, { style: styleFor('usSenate') }); // same geometry, different data/popup
 
-  document.getElementById('btnFederal').addEventListener('click', () => setActiveLevel('federal'));
-  document.getElementById('btnProvincial').addEventListener('click', () => setActiveLevel('provincial'));
+  attachPopups(caFederalLayer, 'caFederal');
+  attachPopups(usHouseLayer, 'usHouse');
+  attachPopups(usSenateLayer, 'usSenate');
+
+  // One Leaflet layer per province/territory, each independently toggleable.
+  const byProvince = {};
+  for (const feature of PROVINCIAL_GEOJSON.features) {
+    const prov = feature.properties.province;
+    (byProvince[prov] = byProvince[prov] || []).push(feature);
+  }
+  const provinceGroup = {};
+  for (const prov of Object.keys(byProvince).sort()) {
+    const layer = L.geoJSON({ type: 'FeatureCollection', features: byProvince[prov] }, { style: styleFor('caProvincial') });
+    attachPopups(layer, 'caProvincial');
+    provinceLayers[prov] = layer;
+    layerVisible.provinces[prov] = false;
+    provinceGroup[prov] = layer;
+  }
+
+  caFederalLayer.addTo(map); // default: only Canada Federal visible
+
+  const baseMaps = { 'Streets': streetsLayer, 'Satellite': satelliteLayer };
+  const groupedOverlays = {
+    'Federal': {
+      'Canada': caFederalLayer,
+      'US House': usHouseLayer,
+      'US Senate': usSenateLayer,
+    },
+    'Provincial': provinceGroup,
+  };
+  L.control.groupedLayers(baseMaps, groupedOverlays, { position: 'bottomleft', collapsed: true, groupCheckboxes: false }).addTo(map);
+
+  map.on('overlayadd', (e) => {
+    if (e.name === 'Canada') layerVisible.caFederal = true;
+    else if (e.name === 'US House') layerVisible.usHouse = true;
+    else if (e.name === 'US Senate') layerVisible.usSenate = true;
+    else if (e.name in layerVisible.provinces) layerVisible.provinces[e.name] = true;
+    updateInfoPanelVisibility();
+    if (userMarker) updateRidingInfo(userMarker.getLatLng().lat, userMarker.getLatLng().lng);
+  });
+  map.on('overlayremove', (e) => {
+    if (e.name === 'Canada') layerVisible.caFederal = false;
+    else if (e.name === 'US House') layerVisible.usHouse = false;
+    else if (e.name === 'US Senate') layerVisible.usSenate = false;
+    else if (e.name in layerVisible.provinces) layerVisible.provinces[e.name] = false;
+    updateInfoPanelVisibility();
+  });
+  updateInfoPanelVisibility();
+
   document.getElementById('btnTrack').addEventListener('click', () => {
     if (watchId === null) startTracking(); else stopTracking();
   });
@@ -506,19 +583,6 @@ function initMap() {
     document.getElementById('btnColorMode').classList.toggle('active', colorByParty);
     await refreshColoring();
   });
-}
-
-function setActiveLevel(level) {
-  activeLevel = level;
-  document.getElementById('btnFederal').classList.toggle('active', level === 'federal');
-  document.getElementById('btnProvincial').classList.toggle('active', level === 'provincial');
-  if (level === 'federal') {
-    if (map.hasLayer(provincialLayer)) map.removeLayer(provincialLayer);
-    if (!map.hasLayer(federalLayer)) federalLayer.addTo(map);
-  } else {
-    if (map.hasLayer(federalLayer)) map.removeLayer(federalLayer);
-    if (!map.hasLayer(provincialLayer)) provincialLayer.addTo(map);
-  }
 }
 
 function startTracking() {
@@ -532,7 +596,6 @@ function startTracking() {
   btnTrack.textContent = 'Stop tracking';
   btnTrack.classList.add('tracking-on');
 }
-
 function stopTracking() {
   const btnTrack = document.getElementById('btnTrack');
   if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
@@ -540,19 +603,17 @@ function stopTracking() {
   btnTrack.classList.remove('tracking-on');
   document.getElementById('statusMsgMap').textContent = 'Tracking stopped.';
 }
-
 async function onPositionUpdate(position) {
   document.getElementById('statusMsgMap').textContent = '';
   const { latitude, longitude, accuracy } = position.coords;
   const latlng = [latitude, longitude];
-
   document.getElementById('coordText').textContent = `lat: ${latitude.toFixed(5)}, lon: ${longitude.toFixed(5)}`;
   document.getElementById('accuracyText').textContent = `accuracy: ±${Math.round(accuracy)}m`;
 
   if (!userMarker) {
     userMarker = L.circleMarker(latlng, { radius: 8, color: '#e8e8e8', fillColor: '#4a90d9', fillOpacity: 0.9, weight: 2 }).addTo(map);
     accuracyCircle = L.circle(latlng, { radius: accuracy, color: '#4a90d9', fillOpacity: 0.08, weight: 1 }).addTo(map);
-    map.setView(latlng, 11);
+    map.setView(latlng, 9);
   } else {
     userMarker.setLatLng(latlng);
     accuracyCircle.setLatLng(latlng);
@@ -560,15 +621,11 @@ async function onPositionUpdate(position) {
   }
   await updateRidingInfo(latitude, longitude);
 }
-
 function onPositionError(err) {
   const messages = { 1: 'Location permission denied.', 2: 'Location unavailable right now.', 3: 'Location request timed out.' };
   document.getElementById('statusMsgMap').textContent = messages[err.code] || 'Unknown location error.';
 }
 
-// Returns ALL features containing the point (not just the first), so
-// disputed-boundary overlaps (e.g. Quebec/Labrador) surface correctly
-// instead of silently picking a "winner".
 function findAllContainingFeatures(geojson, lon, lat) {
   const pt = turf.point([lon, lat]);
   const matches = [];
@@ -579,60 +636,86 @@ function findAllContainingFeatures(geojson, lon, lat) {
 }
 
 async function updateRidingInfo(lat, lon) {
-  const data = await loadUserData();
-  const fedMatches = findAllContainingFeatures(FEDERAL_GEOJSON, lon, lat);
-  const provMatches = findAllContainingFeatures(PROVINCIAL_GEOJSON, lon, lat);
+  const userData = await loadUserData();
 
-  const fedNameEl = document.getElementById('federalName');
-  const fedDetailEl = document.getElementById('federalDetail');
-  const provNameEl = document.getElementById('provincialName');
-  const provDetailEl = document.getElementById('provincialDetail');
-  const provDisputeEl = document.getElementById('provincialDispute');
-
-  if (fedMatches.length) {
-    const feature = fedMatches[0];
-    const name = ridingDisplayName(feature, 'federal');
-    const slug = ridingSlug(feature, 'federal');
-    const entry = (data.federal && data.federal[slug]) || (PRELOADED_DATA.federal && PRELOADED_DATA.federal[slug]);
-    fedNameEl.textContent = name;
-    fedNameEl.classList.remove('placeholder');
-    fedDetailEl.textContent = entry ? `${entry.rep || '—'} · ${entry.party || '—'}` : 'Seat currently vacant / no data';
-  } else {
-    fedNameEl.textContent = 'Outside mapped area';
-    fedNameEl.classList.add('placeholder');
-    fedDetailEl.textContent = '';
+  if (layerVisible.caFederal) {
+    const matches = findAllContainingFeatures(FEDERAL_GEOJSON, lon, lat);
+    const nameEl = document.getElementById('caFederalName');
+    const detailEl = document.getElementById('caFederalDetail');
+    if (matches.length) {
+      const feature = matches[0];
+      const name = ridingDisplayName(feature, 'caFederal');
+      const entry = getEntry('caFederal', ridingSlug(feature, 'caFederal'), userData);
+      nameEl.textContent = name; nameEl.classList.remove('placeholder');
+      detailEl.textContent = entry ? `${entry.rep || '—'} · ${entry.party || '—'}` : 'Vacant / no data';
+    } else { nameEl.textContent = 'Outside mapped area'; nameEl.classList.add('placeholder'); detailEl.textContent = ''; }
   }
 
-  provDisputeEl.textContent = '';
-  if (provMatches.length > 1) {
-    // Genuine overlapping claims (Quebec/Labrador border dispute) --
-    // show all of them rather than arbitrarily picking one.
-    const names = provMatches.map(f => ridingDisplayName(f, 'provincial'));
-    provNameEl.textContent = names.join(' / ');
-    provNameEl.classList.remove('placeholder');
-    provDetailEl.textContent = 'Location falls in a disputed boundary area';
-    provDisputeEl.textContent = '⚠ This spot is claimed by both provinces — a real holdover from the 1927 Quebec/Labrador boundary dispute.';
-  } else if (provMatches.length === 1) {
-    const feature = provMatches[0];
-    const name = ridingDisplayName(feature, 'provincial');
-    const slug = ridingSlug(feature, 'provincial');
-    const entry = (data.provincial && data.provincial[slug]) || (PRELOADED_DATA.provincial && PRELOADED_DATA.provincial[slug]);
-    provNameEl.textContent = name;
-    provNameEl.classList.remove('placeholder');
-    provDetailEl.textContent = entry ? `${entry.rep || '—'} · ${entry.party || '—'}` : 'Seat currently vacant / no data';
-  } else {
-    provNameEl.textContent = 'Outside mapped area';
-    provNameEl.classList.add('placeholder');
-    provDetailEl.textContent = '';
+  const activeProvinces = Object.keys(layerVisible.provinces).filter(p => layerVisible.provinces[p]);
+  if (activeProvinces.length) {
+    const visibleFeatures = PROVINCIAL_GEOJSON.features.filter(f => activeProvinces.includes(f.properties.province));
+    const matches = findAllContainingFeatures({ features: visibleFeatures }, lon, lat);
+    const nameEl = document.getElementById('caProvincialName');
+    const detailEl = document.getElementById('caProvincialDetail');
+    const disputeEl = document.getElementById('caProvincialDispute');
+    disputeEl.textContent = '';
+    if (matches.length > 1) {
+      nameEl.textContent = matches.map(f => ridingDisplayName(f, 'caProvincial')).join(' / ');
+      nameEl.classList.remove('placeholder');
+      detailEl.textContent = 'Disputed boundary area';
+      disputeEl.textContent = '⚠ Claimed by both provinces — the 1927 Quebec/Labrador boundary dispute.';
+    } else if (matches.length === 1) {
+      const feature = matches[0];
+      const name = ridingDisplayName(feature, 'caProvincial');
+      const entry = getEntry('caProvincial', ridingSlug(feature, 'caProvincial'), userData);
+      nameEl.textContent = name; nameEl.classList.remove('placeholder');
+      detailEl.textContent = entry ? `${entry.rep || '—'} · ${entry.party || '—'}` : 'Vacant / no data';
+    } else { nameEl.textContent = 'Outside mapped area'; nameEl.classList.add('placeholder'); detailEl.textContent = ''; }
+  }
+
+  if (layerVisible.usHouse || layerVisible.usSenate) {
+    const matches = findAllContainingFeatures(US_HOUSE_GEOJSON, lon, lat);
+
+    if (layerVisible.usHouse) {
+      const nameEl = document.getElementById('usHouseName');
+      const detailEl = document.getElementById('usHouseDetail');
+      if (matches.length) {
+        const feature = matches[0];
+        const entry = getEntry('usHouse', ridingSlug(feature, 'usHouse'), userData);
+        nameEl.textContent = ridingDisplayName(feature, 'usHouse'); nameEl.classList.remove('placeholder');
+        detailEl.textContent = entry ? `${entry.rep || 'Vacant'} · ${entry.party || '—'}` : 'No data';
+      } else { nameEl.textContent = 'Outside mapped area'; nameEl.classList.add('placeholder'); detailEl.textContent = ''; }
+    }
+
+    if (layerVisible.usSenate) {
+      const nameEl = document.getElementById('usSenateName');
+      const detailEl = document.getElementById('usSenateDetail');
+      if (matches.length) {
+        const feature = matches[0];
+        const stateSlug = DATA.usDistrictToState[feature.properties.slug];
+        const entry = getEntry('usSenate', stateSlug, userData);
+        if (entry) {
+          nameEl.textContent = entry.name; nameEl.classList.remove('placeholder');
+          detailEl.textContent = entry.senators.map(s => `${s.rep} (${s.party})`).join(' · ');
+        } else {
+          nameEl.textContent = feature.properties.state; nameEl.classList.remove('placeholder');
+          detailEl.textContent = 'No data';
+        }
+      } else { nameEl.textContent = 'Outside mapped area'; nameEl.classList.add('placeholder'); detailEl.textContent = ''; }
+    }
   }
 }
 
 /* ============== Data entry view ============== */
-let currentLevel = 'federal';
+let currentLevel = 'caFederal';
 let currentSlug = null;
 
-const btnLevelFederal = document.getElementById('btnLevelFederal');
-const btnLevelProvincial = document.getElementById('btnLevelProvincial');
+const levelButtons = {
+  caFederal: document.getElementById('btnLevelCaFed'),
+  caProvincial: document.getElementById('btnLevelCaProv'),
+  usHouse: document.getElementById('btnLevelUsHouse'),
+  usSenate: document.getElementById('btnLevelUsSenate'),
+};
 const repNameLabel = document.getElementById('repNameLabel');
 const listHeader = document.getElementById('listHeader');
 const entryList = document.getElementById('entryList');
@@ -640,12 +723,18 @@ const statusMsg = document.getElementById('statusMsg');
 const backendMsg = document.getElementById('backendMsg');
 const sourceMsg = document.getElementById('sourceMsg');
 const ridingSelect = document.getElementById('ridingSelect');
+const singleFields = document.getElementById('singleFields');
+const senateFields = document.getElementById('senateFields');
 
 const fields = {
   repName: document.getElementById('repName'),
   party: document.getElementById('party'),
   termStart: document.getElementById('termStart'),
   notes: document.getElementById('notes'),
+  sen1Name: document.getElementById('sen1Name'),
+  sen1Party: document.getElementById('sen1Party'),
+  sen2Name: document.getElementById('sen2Name'),
+  sen2Party: document.getElementById('sen2Party'),
 };
 
 async function showBackendStatus() {
@@ -658,51 +747,53 @@ async function showBackendStatus() {
   backendMsg.textContent = labels[backend];
 }
 
-// Build a lookup from slug -> {name, province} for every provincial riding,
-// used to populate the grouped dropdown and display province context.
-function buildProvincialIndex() {
-  const idx = {};
-  for (const feature of PROVINCIAL_GEOJSON.features) {
-    idx[feature.properties.slug] = { name: feature.properties.name, province: feature.properties.province };
-  }
-  return idx;
-}
-const PROVINCIAL_INDEX = {}; // filled in after data loads (see bootApp tail)
-
 function populateRidingSelect() {
   ridingSelect.innerHTML = '';
-  if (currentLevel === 'federal') {
-    const baseline = PRELOADED_DATA.federal || {};
-    // Federal ridings not in PRELOADED_DATA (vacant seats) still need to be
-    // selectable, so build the option list from the geojson, not the baseline.
+
+  if (currentLevel === 'caFederal') {
     const options = FEDERAL_GEOJSON.features
       .map(f => ({ slug: slugify(f.properties.ED_NAMEE), name: f.properties.ED_NAMEE }))
       .sort((a, b) => a.name.localeCompare(b.name));
     for (const opt of options) {
-      const el = document.createElement('option');
-      el.value = opt.slug; el.textContent = opt.name;
+      const el = document.createElement('option'); el.value = opt.slug; el.textContent = opt.name;
       ridingSelect.appendChild(el);
     }
-  } else {
-    // Group provincial ridings by province with <optgroup>, sorted alphabetically.
+  } else if (currentLevel === 'caProvincial') {
     const byProvince = {};
     for (const feature of PROVINCIAL_GEOJSON.features) {
       const prov = feature.properties.province;
-      (byProvince[prov] = byProvince[prov] || []).push({
-        slug: feature.properties.slug, name: feature.properties.name
-      });
+      (byProvince[prov] = byProvince[prov] || []).push({ slug: feature.properties.slug, name: feature.properties.name });
     }
-    const provinceNames = Object.keys(byProvince).sort();
-    for (const prov of provinceNames) {
-      const group = document.createElement('optgroup');
-      group.label = prov;
+    for (const prov of Object.keys(byProvince).sort()) {
+      const group = document.createElement('optgroup'); group.label = prov;
       byProvince[prov].sort((a, b) => a.name.localeCompare(b.name));
       for (const opt of byProvince[prov]) {
-        const el = document.createElement('option');
-        el.value = opt.slug; el.textContent = opt.name;
+        const el = document.createElement('option'); el.value = opt.slug; el.textContent = opt.name;
         group.appendChild(el);
       }
       ridingSelect.appendChild(group);
+    }
+  } else if (currentLevel === 'usHouse') {
+    const byState = {};
+    for (const feature of US_HOUSE_GEOJSON.features) {
+      const state = feature.properties.state;
+      (byState[state] = byState[state] || []).push({ slug: feature.properties.slug, name: feature.properties.name });
+    }
+    for (const state of Object.keys(byState).sort()) {
+      const group = document.createElement('optgroup'); group.label = state;
+      byState[state].sort((a, b) => a.name.localeCompare(b.name));
+      for (const opt of byState[state]) {
+        const el = document.createElement('option'); el.value = opt.slug; el.textContent = opt.name;
+        group.appendChild(el);
+      }
+      ridingSelect.appendChild(group);
+    }
+  } else if (currentLevel === 'usSenate') {
+    const states = Object.keys(DATA.usSenate).map(slug => ({ slug, name: DATA.usSenate[slug].name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    for (const opt of states) {
+      const el = document.createElement('option'); el.value = opt.slug; el.textContent = opt.name;
+      ridingSelect.appendChild(el);
     }
   }
   if (ridingSelect.options.length) ridingSelect.selectedIndex = 0;
@@ -711,76 +802,103 @@ function populateRidingSelect() {
 async function loadRidingIntoForm(slug) {
   currentSlug = slug;
   const userData = await loadUserData();
-  const userEntry = userData[currentLevel] ? userData[currentLevel][slug] : null;
-  const baseEntry = (PRELOADED_DATA[currentLevel] || {})[slug];
 
-  const effective = userEntry || baseEntry || { rep: '', party: '', termStart: '', notes: '' };
-  fields.repName.value = effective.rep || '';
-  fields.party.value = effective.party || '';
-  fields.termStart.value = effective.termStart || '';
-  fields.notes.value = effective.notes || '';
-
-  if (userEntry) {
-    sourceMsg.textContent = 'Showing your saved edit for this riding.';
-    sourceMsg.className = 'custom';
-  } else if (baseEntry) {
-    sourceMsg.textContent = 'Showing default data \u2014 edit and save to customize.';
-    sourceMsg.className = 'default';
+  if (currentLevel === 'usSenate') {
+    singleFields.classList.add('hidden');
+    senateFields.classList.remove('hidden');
+    const userEntry = userData.usSenate[slug];
+    const baseEntry = DATA.usSenate[slug];
+    const effective = userEntry || baseEntry;
+    if (effective) {
+      fields.sen1Name.value = effective.senators[0].rep;
+      fields.sen1Party.value = effective.senators[0].party;
+      fields.sen2Name.value = effective.senators[1].rep;
+      fields.sen2Party.value = effective.senators[1].party;
+      fields.termStart.value = effective.termStart || '';
+      fields.notes.value = effective.notes || '';
+    }
+    sourceMsg.textContent = userEntry ? 'Showing your saved edit.' : 'Showing default data — edit and save to customize.';
+    sourceMsg.className = userEntry ? 'custom' : 'default';
   } else {
-    sourceMsg.textContent = 'No default data for this riding yet \u2014 fill in and save.';
-    sourceMsg.className = 'default';
+    singleFields.classList.remove('hidden');
+    senateFields.classList.add('hidden');
+    const userEntry = userData[currentLevel] ? userData[currentLevel][slug] : null;
+    const baseEntry = (DATA[DATA_KEY[currentLevel]] || {})[slug];
+    const effective = userEntry || baseEntry || { rep: '', party: '', termStart: '', notes: '' };
+    fields.repName.value = effective.rep || '';
+    fields.party.value = effective.party || '';
+    fields.termStart.value = effective.termStart || '';
+    fields.notes.value = effective.notes || '';
+    if (userEntry) { sourceMsg.textContent = 'Showing your saved edit.'; sourceMsg.className = 'custom'; }
+    else if (baseEntry) { sourceMsg.textContent = 'Showing default data — edit and save to customize.'; sourceMsg.className = 'default'; }
+    else { sourceMsg.textContent = 'No default data yet — fill in and save.'; sourceMsg.className = 'default'; }
   }
-  statusMsg.textContent = '';
-  statusMsg.className = '';
+  statusMsg.textContent = ''; statusMsg.className = '';
 }
 
 function setLevel(level) {
   currentLevel = level;
-  btnLevelFederal.classList.toggle('active', level === 'federal');
-  btnLevelProvincial.classList.toggle('active', level === 'provincial');
-  repNameLabel.textContent = level === 'federal' ? 'MP name' : 'MLA name';
-  listHeader.textContent = level === 'federal' ? 'Your customized federal ridings' : 'Your customized provincial ridings';
+  Object.keys(levelButtons).forEach(k => levelButtons[k].classList.toggle('active', k === level));
+  repNameLabel.textContent = level === 'caFederal' ? 'MP name' : level === 'caProvincial' ? 'MLA name' : 'Representative name';
+  listHeader.textContent = 'Your customized entries (' + levelButtons[level].textContent + ')';
   populateRidingSelect();
   loadRidingIntoForm(ridingSelect.value);
   renderCustomList();
 }
-
-btnLevelFederal.addEventListener('click', () => setLevel('federal'));
-btnLevelProvincial.addEventListener('click', () => setLevel('provincial'));
+Object.keys(levelButtons).forEach(level => levelButtons[level].addEventListener('click', () => setLevel(level)));
 ridingSelect.addEventListener('change', () => loadRidingIntoForm(ridingSelect.value));
 
 document.getElementById('btnReset').addEventListener('click', () => {
-  const baseEntry = (PRELOADED_DATA[currentLevel] || {})[currentSlug];
-  fields.repName.value = baseEntry ? baseEntry.rep || '' : '';
-  fields.party.value = baseEntry ? baseEntry.party || '' : '';
-  fields.termStart.value = baseEntry ? baseEntry.termStart || '' : '';
+  if (currentLevel === 'usSenate') {
+    const baseEntry = DATA.usSenate[currentSlug];
+    if (baseEntry) {
+      fields.sen1Name.value = baseEntry.senators[0].rep; fields.sen1Party.value = baseEntry.senators[0].party;
+      fields.sen2Name.value = baseEntry.senators[1].rep; fields.sen2Party.value = baseEntry.senators[1].party;
+      fields.termStart.value = baseEntry.termStart || '';
+    }
+  } else {
+    const baseEntry = (DATA[DATA_KEY[currentLevel]] || {})[currentSlug];
+    fields.repName.value = baseEntry ? baseEntry.rep || '' : '';
+    fields.party.value = baseEntry ? baseEntry.party || '' : '';
+    fields.termStart.value = baseEntry ? baseEntry.termStart || '' : '';
+  }
   fields.notes.value = '';
-  statusMsg.textContent = 'Reset to default \u2014 click Save to remove your customization, or edit further.';
+  statusMsg.textContent = 'Reset to default — click Save to remove your customization, or edit further.';
   statusMsg.className = '';
 });
 
 document.getElementById('btnSave').addEventListener('click', async () => {
   if (!currentSlug) return;
-  const baseEntry = (PRELOADED_DATA[currentLevel] || {})[currentSlug];
   const selectedOption = ridingSelect.options[ridingSelect.selectedIndex];
-  const name = baseEntry ? baseEntry.name : (selectedOption ? selectedOption.textContent : currentSlug);
+  const name = selectedOption ? selectedOption.textContent : currentSlug;
 
-  const entry = {
-    name,
-    rep: fields.repName.value.trim(),
-    party: fields.party.value.trim(),
-    termStart: fields.termStart.value,
-    notes: fields.notes.value.trim(),
-  };
+  let entry;
+  if (currentLevel === 'usSenate') {
+    entry = {
+      name,
+      senators: [
+        { rep: fields.sen1Name.value.trim(), party: fields.sen1Party.value.trim() },
+        { rep: fields.sen2Name.value.trim(), party: fields.sen2Party.value.trim() },
+      ],
+      termStart: fields.termStart.value,
+      notes: fields.notes.value.trim(),
+    };
+  } else {
+    entry = {
+      name,
+      rep: fields.repName.value.trim(),
+      party: fields.party.value.trim(),
+      termStart: fields.termStart.value,
+      notes: fields.notes.value.trim(),
+    };
+  }
 
   try {
     const data = await loadUserData();
     data[currentLevel][currentSlug] = entry;
     await saveUserData(data);
-    statusMsg.textContent = `Saved "${name}".`;
-    statusMsg.className = 'ok';
-    sourceMsg.textContent = 'Showing your saved edit for this riding.';
-    sourceMsg.className = 'custom';
+    statusMsg.textContent = `Saved "${name}".`; statusMsg.className = 'ok';
+    sourceMsg.textContent = 'Showing your saved edit.'; sourceMsg.className = 'custom';
     renderCustomList();
   } catch (e) {
     statusMsg.textContent = 'Save failed: ' + (e && e.message ? e.message : 'unknown error');
@@ -792,38 +910,34 @@ async function renderCustomList() {
   const userData = await loadUserData();
   const entries = userData[currentLevel] || {};
   const slugs = Object.keys(entries);
-
   if (slugs.length === 0) {
-    entryList.innerHTML = '<div class="empty-note">No customizations yet \u2014 everything is showing default data.</div>';
+    entryList.innerHTML = '<div class="empty-note">No customizations yet — everything is showing default data.</div>';
     return;
   }
-
   entryList.innerHTML = '';
   slugs.sort((a, b) => entries[a].name.localeCompare(entries[b].name));
-
   slugs.forEach(slug => {
     const e = entries[slug];
+    const sub = e.senators
+      ? e.senators.map(s => `${s.rep} (${s.party})`).join(' · ')
+      : `${e.rep || '—'} · ${e.party || '—'}${e.termStart ? ' · since ' + e.termStart : ''}`;
     const row = document.createElement('div');
     row.className = 'entry-item';
     row.innerHTML = `
       <div>
         <div class="entry-main">${e.name}</div>
-        <div class="entry-sub">${e.rep || '\u2014'} \u00b7 ${e.party || '\u2014'}${e.termStart ? ' \u00b7 since ' + e.termStart : ''}</div>
+        <div class="entry-sub">${sub}</div>
       </div>
       <div class="entry-actions">
         <button class="edit">Edit</button>
         <button class="delete">Remove edit</button>
       </div>
     `;
-    row.querySelector('.edit').addEventListener('click', () => {
-      ridingSelect.value = slug;
-      loadRidingIntoForm(slug);
-    });
+    row.querySelector('.edit').addEventListener('click', () => { ridingSelect.value = slug; loadRidingIntoForm(slug); });
     row.querySelector('.delete').addEventListener('click', () => deleteEntry(slug));
     entryList.appendChild(row);
   });
 }
-
 async function deleteEntry(slug) {
   const data = await loadUserData();
   delete data[currentLevel][slug];
@@ -836,35 +950,26 @@ document.getElementById('btnExport').addEventListener('click', async () => {
   const data = await loadUserData();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'riding-data-edits.json'; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = 'riding-data-edits.json'; a.click();
   URL.revokeObjectURL(url);
 });
-
-document.getElementById('btnImport').addEventListener('click', () => {
-  document.getElementById('importFile').click();
-});
-
+document.getElementById('btnImport').addEventListener('click', () => document.getElementById('importFile').click());
 document.getElementById('importFile').addEventListener('change', async (evt) => {
   const file = evt.target.files[0];
   if (!file) return;
   try {
     const text = await file.text();
     const parsed = JSON.parse(text);
-    if (!parsed.federal || !parsed.provincial) throw new Error('File missing expected structure.');
     await saveUserData(parsed);
-    statusMsg.textContent = 'Import successful.';
-    statusMsg.className = 'ok';
-    renderCustomList();
-    loadRidingIntoForm(currentSlug);
+    statusMsg.textContent = 'Import successful.'; statusMsg.className = 'ok';
+    renderCustomList(); loadRidingIntoForm(currentSlug);
   } catch (e) {
-    statusMsg.textContent = 'Import failed: ' + e.message;
-    statusMsg.className = 'err';
+    statusMsg.textContent = 'Import failed: ' + e.message; statusMsg.className = 'err';
   }
   evt.target.value = '';
 });
 
-/* ---- Boot sequence ---- */
+/* ---- Boot ---- */
 showBackendStatus();
 populateRidingSelect();
 loadRidingIntoForm(ridingSelect.value);
@@ -873,9 +978,7 @@ initMap();
 mapInitialized = true;
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('service-worker.js').catch(() => {});
-  });
+  window.addEventListener('load', () => { navigator.serviceWorker.register('service-worker.js').catch(() => {}); });
 }
 
 } // end bootApp
