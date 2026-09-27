@@ -66,7 +66,7 @@
     position: absolute; top: 56px; right: 10px; z-index: 1000;
     background: #181b22; border-radius: 12px; padding: 12px 14px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.4); max-height: 60vh; overflow-y: auto;
-    min-width: 180px;
+    min-width: 180px; touch-action: pan-y;
   }
   #layersPanel.hidden { display: none; }
   .layers-group-title {
@@ -607,6 +607,14 @@ function initMap() {
       if (userMarker) updateRidingInfo(userMarker.getLatLng().lat, userMarker.getLatLng().lng);
     });
   }
+
+  // The panel sits visually on top of the map, so without this, Leaflet's
+  // own touch handlers intercept the scroll/drag gesture meant for the
+  // panel and try to pan the map instead -- this is what was cutting the
+  // list off with no way to scroll further on mobile.
+  const layersPanelEl = document.getElementById('layersPanel');
+  L.DomEvent.disableClickPropagation(layersPanelEl);
+  L.DomEvent.disableScrollPropagation(layersPanelEl);
 
   updateInfoPanelVisibility();
 
