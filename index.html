@@ -288,7 +288,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
 <script>
 /* ============== Data loading ============== */
-let FEDERAL_GEOJSON, PROVINCIAL_GEOJSON, US_HOUSE_GEOJSON, DATA;
+let FEDERAL_GEOJSON, PROVINCIAL_GEOJSON, US_HOUSE_GEOJSON, US_STATES_GEOJSON, DATA;
 
 async function loadAppData() {
   const loadingText = document.getElementById('loadingText');
@@ -302,6 +302,9 @@ async function loadAppData() {
 
     loadingText.textContent = 'Loading US House districts…';
     US_HOUSE_GEOJSON = await (await fetch('us-house.geojson')).json();
+
+    loadingText.textContent = 'Loading US state boundaries…';
+    US_STATES_GEOJSON = await (await fetch('us-states.geojson')).json();
 
     loadingText.textContent = 'Loading representative data…';
     DATA = await (await fetch('riding-data.json')).json();
@@ -384,12 +387,14 @@ function ridingSlug(feature, level) {
   if (level === 'caFederal') return slugify(feature.properties.ED_NAMEE || feature.properties.ED_NAME);
   if (level === 'caProvincial') return feature.properties.slug;
   if (level === 'usHouse') return feature.properties.slug;
+  if (level === 'usSenate') return feature.properties.slug;
   return null;
 }
 function ridingDisplayName(feature, level) {
   if (level === 'caFederal') return feature.properties.ED_NAMEE || feature.properties.ED_NAME || 'Unknown riding';
   if (level === 'caProvincial') return `${feature.properties.name} (${feature.properties.province})`;
   if (level === 'usHouse') return feature.properties.name;
+  if (level === 'usSenate') return feature.properties.name;
   return feature.properties.name;
 }
 
@@ -438,6 +443,49 @@ function normalizeParty(party) {
 function colorForParty(party) { return PARTY_COLORS[normalizeParty(party)] || PARTY_COLOR_FALLBACK; }
 function partyStyleFor() { return { color: '#000000', weight: 2.2, opacity: 1, fillOpacity: 0.35 }; }
 
+// Split-party states (two senators from different parties) get a diagonal
+// stripe pattern instead of a solid fill, so the map distinguishes them
+// from states where both senators share a party at a glance.
+const stripePatternCache = {};
+function getSvgDefs() {
+  const svg = document.querySelector('#map svg');
+  if (!svg) return null;
+  let defs = svg.querySelector('defs');
+  if (!defs) {
+    defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    svg.insertBefore(defs, svg.firstChild);
+  }
+  return defs;
+}
+function getStripeFill(colorA, colorB) {
+  const key = [colorA, colorB].sort().join('__');
+  if (stripePatternCache[key]) return `url(#${stripePatternCache[key]})`;
+  const defs = getSvgDefs();
+  if (!defs) return colorA; // SVG not ready yet -- fall back to a solid color rather than error
+  const id = 'stripe-' + key.replace(/[^a-zA-Z0-9]/g, '');
+  const ns = 'http://www.w3.org/2000/svg';
+  const pattern = document.createElementNS(ns, 'pattern');
+  pattern.setAttribute('id', id);
+  pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+  pattern.setAttribute('width', '10');
+  pattern.setAttribute('height', '10');
+  pattern.setAttribute('patternTransform', 'rotate(45)');
+  const rect1 = document.createElementNS(ns, 'rect');
+  rect1.setAttribute('width', '10'); rect1.setAttribute('height', '10'); rect1.setAttribute('fill', colorA);
+  const rect2 = document.createElementNS(ns, 'rect');
+  rect2.setAttribute('width', '5'); rect2.setAttribute('height', '10'); rect2.setAttribute('fill', colorB);
+  pattern.appendChild(rect1); pattern.appendChild(rect2);
+  defs.appendChild(pattern);
+  stripePatternCache[key] = id;
+  return `url(#${id})`;
+}
+function fillForSenateEntry(entry) {
+  if (!entry || !entry.senators) return PARTY_COLOR_FALLBACK;
+  const c1 = colorForParty(entry.senators[0].party);
+  const c2 = colorForParty(entry.senators[1].party);
+  return c1 === c2 ? c1 : getStripeFill(c1, c2);
+}
+
 function getEntry(level, slug, userData) {
   if (!slug) return null;
   const dataKey = DATA_KEY[level];
@@ -451,10 +499,9 @@ async function applyLayerColoring(geoJsonLayer, level) {
     if (colorByParty) {
       let fillColor = PARTY_COLOR_FALLBACK;
       if (level === 'usSenate') {
-        const districtSlug = layer.feature.properties.slug;
-        const stateSlug = DATA.usDistrictToState[districtSlug];
-        const entry = getEntry('usSenate', stateSlug, userData);
-        if (entry && entry.senators && entry.senators[0]) fillColor = colorForParty(entry.senators[0].party);
+        const slug = layer.feature.properties.slug;
+        const entry = getEntry('usSenate', slug, userData);
+        fillColor = fillForSenateEntry(entry);
       } else {
         const slug = ridingSlug(layer.feature, level);
         const entry = getEntry(level, slug, userData);
@@ -480,16 +527,16 @@ async function buildPopupContent(feature, level) {
   const name = ridingDisplayName(feature, level);
 
   if (level === 'usSenate') {
-    const districtSlug = feature.properties.slug;
-    const stateSlug = DATA.usDistrictToState[districtSlug];
-    const entry = getEntry('usSenate', stateSlug, userData);
+    const slug = feature.properties.slug;
+    const entry = getEntry('usSenate', slug, userData);
+    const userEntry = userData.usSenate && userData.usSenate[slug];
     let html = `<div class="popup-title">${entry ? entry.name : name} (Senate)</div>`;
     if (entry && entry.senators) {
       entry.senators.forEach(s => {
         html += `<div class="popup-sub">${s.rep} · ${s.party}</div>`;
       });
-      if (userData.usSenate && userData.usSenate[stateSlug] && userData.usSenate[stateSlug].notes) {
-        html += `<div class="popup-notes">${userData.usSenate[stateSlug].notes}</div>`;
+      if (userEntry && userEntry.notes) {
+        html += `<div class="popup-notes">${userEntry.notes}</div>`;
       }
     } else {
       html += `<div class="popup-sub placeholder">No data</div>`;
@@ -550,7 +597,7 @@ function initMap() {
 
   caFederalLayer = L.geoJSON(FEDERAL_GEOJSON, { style: styleFor('caFederal') });
   usHouseLayer = L.geoJSON(US_HOUSE_GEOJSON, { style: styleFor('usHouse') });
-  usSenateLayer = L.geoJSON(US_HOUSE_GEOJSON, { style: styleFor('usSenate') }); // same geometry, different data/popup
+  usSenateLayer = L.geoJSON(US_STATES_GEOJSON, { style: styleFor('usSenate'), filter: f => f.properties.hasSenators });
 
   attachPopups(caFederalLayer, 'caFederal');
   attachPopups(usHouseLayer, 'usHouse');
@@ -722,36 +769,34 @@ async function updateRidingInfo(lat, lon) {
     } else { nameEl.textContent = 'Outside mapped area'; nameEl.classList.add('placeholder'); detailEl.textContent = ''; }
   }
 
-  if (layerVisible.usHouse || layerVisible.usSenate) {
+  if (layerVisible.usHouse) {
     const matches = findAllContainingFeatures(US_HOUSE_GEOJSON, lon, lat);
+    const nameEl = document.getElementById('usHouseName');
+    const detailEl = document.getElementById('usHouseDetail');
+    if (matches.length) {
+      const feature = matches[0];
+      const entry = getEntry('usHouse', ridingSlug(feature, 'usHouse'), userData);
+      nameEl.textContent = ridingDisplayName(feature, 'usHouse'); nameEl.classList.remove('placeholder');
+      detailEl.textContent = entry ? `${entry.rep || 'Vacant'} · ${entry.party || '—'}` : 'No data';
+    } else { nameEl.textContent = 'Outside mapped area'; nameEl.classList.add('placeholder'); detailEl.textContent = ''; }
+  }
 
-    if (layerVisible.usHouse) {
-      const nameEl = document.getElementById('usHouseName');
-      const detailEl = document.getElementById('usHouseDetail');
-      if (matches.length) {
-        const feature = matches[0];
-        const entry = getEntry('usHouse', ridingSlug(feature, 'usHouse'), userData);
-        nameEl.textContent = ridingDisplayName(feature, 'usHouse'); nameEl.classList.remove('placeholder');
-        detailEl.textContent = entry ? `${entry.rep || 'Vacant'} · ${entry.party || '—'}` : 'No data';
-      } else { nameEl.textContent = 'Outside mapped area'; nameEl.classList.add('placeholder'); detailEl.textContent = ''; }
-    }
-
-    if (layerVisible.usSenate) {
-      const nameEl = document.getElementById('usSenateName');
-      const detailEl = document.getElementById('usSenateDetail');
-      if (matches.length) {
-        const feature = matches[0];
-        const stateSlug = DATA.usDistrictToState[feature.properties.slug];
-        const entry = getEntry('usSenate', stateSlug, userData);
-        if (entry) {
-          nameEl.textContent = entry.name; nameEl.classList.remove('placeholder');
-          detailEl.textContent = entry.senators.map(s => `${s.rep} (${s.party})`).join(' · ');
-        } else {
-          nameEl.textContent = feature.properties.state; nameEl.classList.remove('placeholder');
-          detailEl.textContent = 'No data';
-        }
-      } else { nameEl.textContent = 'Outside mapped area'; nameEl.classList.add('placeholder'); detailEl.textContent = ''; }
-    }
+  if (layerVisible.usSenate) {
+    const matches = findAllContainingFeatures(US_STATES_GEOJSON, lon, lat);
+    const nameEl = document.getElementById('usSenateName');
+    const detailEl = document.getElementById('usSenateDetail');
+    if (matches.length) {
+      const feature = matches[0];
+      const slug = feature.properties.slug;
+      const entry = getEntry('usSenate', slug, userData);
+      if (entry) {
+        nameEl.textContent = entry.name; nameEl.classList.remove('placeholder');
+        detailEl.textContent = entry.senators.map(s => `${s.rep} (${s.party})`).join(' · ');
+      } else {
+        nameEl.textContent = feature.properties.name; nameEl.classList.remove('placeholder');
+        detailEl.textContent = 'No data';
+      }
+    } else { nameEl.textContent = 'Outside mapped area'; nameEl.classList.add('placeholder'); detailEl.textContent = ''; }
   }
 }
 

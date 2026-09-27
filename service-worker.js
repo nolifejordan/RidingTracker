@@ -7,6 +7,7 @@ const APP_SHELL = [
   './federal.geojson',
   './provincial.geojson',
   './us-house.geojson',
+  './us-states.geojson',
   './riding-data.json'
 ];
 
