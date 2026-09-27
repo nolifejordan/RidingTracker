@@ -441,7 +441,7 @@ function normalizeParty(party) {
   return (party || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 function colorForParty(party) { return PARTY_COLORS[normalizeParty(party)] || PARTY_COLOR_FALLBACK; }
-function partyStyleFor() { return { color: '#000000', weight: 2.2, opacity: 1, fillOpacity: 0.35 }; }
+function partyStyleFor() { return { color: '#000000', weight: 2.2, opacity: 1, fillOpacity: 0.45 }; }
 
 // Split-party states (two senators from different parties) get a diagonal
 // stripe pattern instead of a solid fill, so the map distinguishes them
