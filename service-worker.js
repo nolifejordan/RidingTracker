@@ -1,5 +1,5 @@
 // Bumping CACHE_NAME forces a refresh of all cached files on next load.
-const CACHE_NAME = 'riding-tracker-v3';
+const CACHE_NAME = 'riding-tracker-v4';
 
 const APP_SHELL = [
   './index.html',
@@ -30,9 +30,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
 
+  // App shell + data files: stale-while-revalidate. Serve the cached copy
+  // instantly (works offline), but refresh it in the background so the NEXT
+  // load picks up any redeployed changes. (Plain cache-first would keep
+  // serving an old index.html forever unless this file itself changed.)
   if (APP_SHELL.some((path) => url.endsWith(path.replace('./', '')))) {
     event.respondWith(
-      caches.match(event.request).then((cached) => cached || fetch(event.request))
+      caches.open(CACHE_NAME).then((cache) =>
+        cache.match(event.request).then((cached) => {
+          const network = fetch(event.request).then((response) => {
+            if (response && response.ok) cache.put(event.request, response.clone());
+            return response;
+          }).catch(() => cached);
+          return cached || network;
+        })
+      )
     );
     return;
   }

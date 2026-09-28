@@ -10,21 +10,49 @@
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <style>
+  :root {
+    --bg-body: #0f1115;
+    --bg-surface: #181b22;
+    --bg-surface-alt: #14161c;
+    --bg-input: #0f1115;
+    --text-primary: #e8e8e8;
+    --text-secondary: #8a8f9c;
+    --text-tertiary: #5a6270;
+    --text-sub: #a9afbd;
+    --border-color: #2a2e38;
+    --border-color-alt: #23262e;
+    --accent: #4a90d9;
+    --heading-accent: #8ea0c9;
+  }
+  [data-theme="light"] {
+    --bg-body: #f2f3f5;
+    --bg-surface: #ffffff;
+    --bg-surface-alt: #e9ebef;
+    --bg-input: #f5f6f8;
+    --text-primary: #1a1d23;
+    --text-secondary: #5a6270;
+    --text-tertiary: #8a8f9c;
+    --text-sub: #4a5568;
+    --border-color: #d8dce2;
+    --border-color-alt: #dfe2e7;
+    --accent: #2e6bb8;
+    --heading-accent: #3a5a8c;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
-  body { background: #0f1115; color: #e8e8e8; }
+  body { background: var(--bg-body); color: var(--text-primary); }
 
   #loadingScreen {
-    position: fixed; inset: 0; z-index: 5000; background: #0f1115;
+    position: fixed; inset: 0; z-index: 5000; background: var(--bg-body);
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
   }
   #loadingScreen.hidden { display: none; }
   .spinner {
-    width: 32px; height: 32px; border: 3px solid #2a2e38; border-top-color: #4a90d9;
+    width: 32px; height: 32px; border: 3px solid var(--border-color); border-top-color: var(--accent);
     border-radius: 50%; animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  #loadingText { font-size: 13px; color: #8a8f9c; }
+  #loadingText { font-size: 13px; color: var(--text-secondary); }
   #loadingError { font-size: 13px; color: #e08a8a; max-width: 280px; text-align: center; }
 
   #app { position: fixed; inset: 0; display: flex; flex-direction: column; }
@@ -33,15 +61,15 @@
   .view.active { display: block; }
 
   #tabbar {
-    display: flex; height: 58px; background: #14161c; border-top: 1px solid #23262e;
+    display: flex; height: 58px; background: var(--bg-surface-alt); border-top: 1px solid var(--border-color-alt);
     padding-bottom: env(safe-area-inset-bottom);
   }
   #tabbar button {
-    flex: 1; background: none; border: none; color: #6f7585; font-size: 12px; font-weight: 600;
+    flex: 1; background: none; border: none; color: var(--text-tertiary); font-size: 12px; font-weight: 600;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
     cursor: pointer;
   }
-  #tabbar button.active { color: #4a90d9; }
+  #tabbar button.active { color: var(--accent); }
   #tabbar .icon { font-size: 20px; line-height: 1; }
 
   #map-view.active { display: flex; flex-direction: column; }
@@ -64,92 +92,123 @@
 
   #layersPanel {
     position: absolute; top: 56px; right: 10px; z-index: 1000;
-    background: #181b22; border-radius: 12px; padding: 12px 14px;
+    background: var(--bg-surface); border-radius: 12px; padding: 12px 14px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.4); max-height: 60vh; overflow-y: auto;
     min-width: 180px; touch-action: pan-y;
   }
   #layersPanel.hidden { display: none; }
   .layers-group-title {
     font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
-    color: #8ea0c9; margin: 10px 0 4px;
+    color: var(--heading-accent); margin: 10px 0 4px;
   }
   .layers-group-title:first-child { margin-top: 0; }
   .layer-checkbox {
-    display: flex; align-items: center; gap: 8px; font-size: 13px; color: #eee;
+    display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-primary);
     padding: 4px 0; cursor: pointer;
   }
   .layer-checkbox input { width: 16px; height: 16px; cursor: pointer; }
 
   #infoPanel {
-    background: #14161c; color: #eee; padding: 12px 18px; max-height: 40vh; overflow-y: auto;
-    border-top: 1px solid #23262e;
+    background: var(--bg-surface-alt); color: var(--text-primary); padding: 12px 18px; max-height: 40vh; overflow-y: auto;
+    border-top: 1px solid var(--border-color-alt);
   }
-  #infoPanel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #8ea0c9; margin-bottom: 8px; }
-  .riding-row { padding: 6px 0; border-bottom: 1px solid #2a2e38; display: none; }
+  #infoPanel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--heading-accent); margin-bottom: 8px; }
+  .riding-row { padding: 6px 0; border-bottom: 1px solid var(--border-color); display: none; }
   .riding-row.shown { display: block; }
   .riding-row:last-of-type { border-bottom: none; }
-  .riding-label { font-size: 11px; color: #8a8f9c; text-transform: uppercase; letter-spacing: 0.04em; }
+  .riding-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
   .riding-value { font-size: 14px; font-weight: 600; margin-top: 2px; }
-  .riding-sub { font-size: 12px; color: #a9afbd; margin-top: 2px; }
-  .riding-dispute { font-size: 12px; color: #f0c674; margin-top: 4px; }
-  .placeholder { color: #5a5f6c; font-style: italic; font-weight: 400; }
-  .empty-hint { font-size: 12px; color: #5a5f6c; font-style: italic; }
-  #coords { display: flex; justify-content: space-between; font-size: 11px; color: #6f7585; margin-top: 6px; }
-  #statusMsgMap { font-size: 12px; color: #f0c674; margin-bottom: 4px; min-height: 14px; }
+  .riding-sub { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+  .riding-dispute { font-size: 12px; color: #d19a1f; margin-top: 4px; }
+  .placeholder { color: var(--text-tertiary); font-style: italic; font-weight: 400; }
+  .empty-hint { font-size: 12px; color: var(--text-tertiary); font-style: italic; }
+  #coords { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); margin-top: 6px; }
+  #statusMsgMap { font-size: 12px; color: #d19a1f; margin-bottom: 4px; min-height: 14px; }
 
-  .leaflet-popup-content-wrapper { background: #181b22; color: #eee; border-radius: 10px; }
-  .leaflet-popup-tip { background: #181b22; }
-  .leaflet-control-layers { background: #181b22 !important; color: #eee !important; border-radius: 10px !important; border: none !important; box-shadow: 0 2px 8px rgba(0,0,0,0.35) !important; max-width: 220px; }
+  .leaflet-popup-content-wrapper { background: var(--bg-surface); color: var(--text-primary); border-radius: 10px; }
+  .leaflet-popup-tip { background: var(--bg-surface); }
+  .leaflet-control-layers { background: var(--bg-surface) !important; color: var(--text-primary) !important; border-radius: 10px !important; border: none !important; box-shadow: 0 2px 8px rgba(0,0,0,0.35) !important; max-width: 220px; }
   .leaflet-control-layers-toggle { filter: invert(1) brightness(1.6); }
+  [data-theme="light"] .leaflet-control-layers-toggle { filter: none; }
   .leaflet-control-layers-expanded { padding: 10px 14px !important; }
-  .leaflet-control-layers label { color: #eee !important; font-size: 13px; margin: 5px 0; display: flex; align-items: center; gap: 6px; }
-  .leaflet-control-layers-separator { border-top: 1px solid #2a2e38 !important; margin: 6px 0 !important; }
-  .leaflet-control-layers-group-name { color: #8ea0c9 !important; font-size: 11px !important; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-top: 6px; }
+  .leaflet-control-layers label { color: var(--text-primary) !important; font-size: 13px; margin: 5px 0; display: flex; align-items: center; gap: 6px; }
+  .leaflet-control-layers-separator { border-top: 1px solid var(--border-color) !important; margin: 6px 0 !important; }
+  .leaflet-control-layers-group-name { color: var(--heading-accent) !important; font-size: 11px !important; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-top: 6px; }
   .leaflet-control-layers-scrollbar { max-height: 320px; overflow-y: auto; }
   .popup-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
-  .popup-sub { font-size: 12px; color: #a9afbd; }
-  .popup-notes { font-size: 12px; color: #ccc; margin-top: 6px; }
-  .popup-dispute { font-size: 12px; color: #f0c674; margin-top: 6px; }
+  .popup-sub { font-size: 12px; color: var(--text-sub); }
+  .popup-notes { font-size: 12px; color: var(--text-primary); margin-top: 6px; }
+  .popup-dispute { font-size: 12px; color: #d19a1f; margin-top: 6px; }
 
-  #data-view { padding: 16px; padding-bottom: 24px; }
+  #data-view, #settings-view { padding: 16px; padding-bottom: 24px; }
   h1 { font-size: 18px; margin-bottom: 4px; }
-  .subtitle { font-size: 13px; color: #8a8f9c; margin-bottom: 16px; }
-  .card { background: #181b22; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-  label { display: block; font-size: 12px; color: #9aa0ad; margin: 12px 0 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+  h2.section-title { font-size: 14px; margin: 20px 0 10px; color: var(--heading-accent); text-transform: uppercase; letter-spacing: 0.05em; }
+  h2.section-title:first-child { margin-top: 0; }
+  .subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
+  .card { background: var(--bg-surface); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  label { display: block; font-size: 12px; color: var(--text-secondary); margin: 12px 0 4px; text-transform: uppercase; letter-spacing: 0.04em; }
   label:first-child { margin-top: 0; }
-  input[type="text"], input[type="date"], textarea, select {
-    width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #2a2e38;
-    background: #0f1115; color: #e8e8e8; font-size: 14px;
+  input[type="text"], input[type="date"], input[type="number"], textarea, select {
+    width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--bg-input); color: var(--text-primary); font-size: 14px;
   }
   textarea { resize: vertical; min-height: 60px; }
   .level-toggle { display: flex; gap: 6px; flex-wrap: wrap; }
   .level-toggle button {
-    flex: 1; min-width: 40%; padding: 10px 6px; border-radius: 8px; border: 1px solid #2a2e38;
-    background: #0f1115; color: #9aa0ad; font-size: 13px; font-weight: 600; cursor: pointer;
+    flex: 1; min-width: 40%; padding: 10px 6px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--bg-input); color: var(--text-secondary); font-size: 13px; font-weight: 600; cursor: pointer;
   }
   .level-toggle button.active { background: #3a4a6b; color: #fff; border-color: #3a4a6b; }
   .btn-row { display: flex; gap: 8px; margin-top: 16px; }
   button.primary { flex: 1; padding: 12px; border-radius: 8px; border: none; background: #2f7d46; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; }
-  button.secondary { padding: 12px 16px; border-radius: 8px; border: 1px solid #2a2e38; background: transparent; color: #9aa0ad; font-size: 14px; cursor: pointer; }
+  button.secondary { padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); font-size: 14px; cursor: pointer; }
   #statusMsg { font-size: 13px; margin-top: 10px; min-height: 16px; }
   #statusMsg.ok { color: #6bbf87; }
   #statusMsg.err { color: #e08a8a; }
-  #backendMsg { font-size: 12px; color: #6f7585; margin-bottom: 4px; }
+  #backendMsg { font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px; }
   #sourceMsg { font-size: 12px; margin-top: 6px; min-height: 14px; }
-  #sourceMsg.default { color: #6f7585; font-style: italic; }
+  #sourceMsg.default { color: var(--text-tertiary); font-style: italic; }
   #sourceMsg.custom { color: #6bbf87; }
-  .entry-list-header { font-size: 13px; color: #8a8f9c; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
-  .entry-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #23262e; }
+  .entry-list-header { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .entry-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-color-alt); }
   .entry-item:last-child { border-bottom: none; }
   .entry-main { font-size: 14px; font-weight: 600; }
-  .entry-sub { font-size: 12px; color: #8a8f9c; margin-top: 2px; }
-  .entry-actions button { background: none; border: none; color: #8ea0c9; font-size: 12px; cursor: pointer; padding: 4px 8px; }
+  .entry-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .entry-actions button { background: none; border: none; color: var(--heading-accent); font-size: 12px; cursor: pointer; padding: 4px 8px; }
   .entry-actions button.delete { color: #e08a8a; }
-  .empty-note { font-size: 13px; color: #5a5f6c; font-style: italic; }
+  .empty-note { font-size: 13px; color: var(--text-tertiary); font-style: italic; }
   #importFile { display: none; }
   .senate-pair { display: flex; gap: 8px; }
   .senate-pair > div { flex: 1; }
   #senateFields.hidden, #singleFields.hidden { display: none; }
+
+  /* ---- Settings view ---- */
+  .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-color-alt); gap: 12px; }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row-label { font-size: 14px; color: var(--text-primary); }
+  .settings-row-hint { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+  .settings-row input[type="number"] { width: 90px; }
+  .party-color-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+  .party-color-row span { font-size: 13px; color: var(--text-primary); }
+  .party-color-row input[type="color"] {
+    width: 40px; height: 32px; border-radius: 6px; border: 1px solid var(--border-color);
+    background: none; cursor: pointer; padding: 2px;
+  }
+  .theme-toggle { display: flex; gap: 8px; }
+  .theme-toggle button {
+    flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--bg-input); color: var(--text-secondary); font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .theme-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  details.about-sources { margin-top: 10px; }
+  details.about-sources summary {
+    font-size: 13px; color: var(--heading-accent); cursor: pointer; font-weight: 600;
+    padding: 6px 0;
+  }
+  details.about-sources ul { margin: 8px 0 0 18px; font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
+  .about-link { color: var(--accent); text-decoration: none; font-size: 13px; word-break: break-all; }
+  .about-name { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+  .about-meta { font-size: 12px; color: var(--text-tertiary); margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -276,11 +335,74 @@
       </div>
     </div>
 
+    <div id="settings-view" class="view">
+      <h1>Settings</h1>
+      <div class="subtitle">Customize how the map looks. Changes apply immediately.</div>
+
+      <h2 class="section-title">Map</h2>
+      <div class="card">
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Fill opacity</div>
+            <div class="settings-row-hint">Party-colour mode fill strength (0–1)</div>
+          </div>
+          <input type="number" id="settingOpacity" min="0" max="1" step="0.05">
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Border weight</div>
+            <div class="settings-row-hint">Riding outline thickness in pixels</div>
+          </div>
+          <input type="number" id="settingWeight" min="0.5" max="6" step="0.1">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="settings-row-label" style="margin-bottom: 8px;">Party colours</div>
+        <div id="partyColorList"></div>
+        <div class="btn-row">
+          <button class="secondary" id="btnResetMapSettings" type="button">Reset map settings to default</button>
+        </div>
+        <div id="settingsStatusMsg" style="font-size:13px; margin-top:10px; min-height:16px;"></div>
+      </div>
+
+      <h2 class="section-title">Appearance</h2>
+      <div class="card">
+        <div class="settings-row-label" style="margin-bottom: 8px;">Theme</div>
+        <div class="theme-toggle">
+          <button id="btnThemeDark" class="active" type="button">Dark</button>
+          <button id="btnThemeLight" type="button">Light</button>
+        </div>
+      </div>
+
+      <h2 class="section-title">About</h2>
+      <div class="card">
+        <div class="about-name">Riding Tracker</div>
+        <div class="about-meta">Federal &amp; provincial (Canada) and federal (US) electoral boundaries, with MP/MLA/Rep/Senator data.</div>
+        <div style="margin-top:10px;">
+          <a class="about-link" id="aboutRepoLink" href="#" target="_blank" rel="noopener">(add your GitHub repo URL here)</a>
+        </div>
+        <details class="about-sources">
+          <summary>Data sources</summary>
+          <ul>
+            <li>Elections Canada — federal riding boundaries &amp; general election results</li>
+            <li>BC, Alberta, Manitoba, New Brunswick, Newfoundland &amp; Labrador, Nova Scotia, Ontario, Quebec, Saskatchewan — provincial electoral boundary files &amp; legislature member lists</li>
+            <li>Northwest Territories &amp; Nunavut Legislative Assemblies (consensus government)</li>
+            <li>Yukon Legislative Assembly</li>
+            <li>US Census Bureau TIGER/Line — congressional district &amp; state boundaries</li>
+            <li>Clerk of the US House of Representatives &amp; US Senate — current membership</li>
+            <li>Wikipedia — cross-checked current legislature membership tables</li>
+          </ul>
+        </details>
+      </div>
+    </div>
+
   </div>
 
   <div id="tabbar">
     <button id="tabMap" class="active" type="button"><span class="icon">🗺️</span>Map</button>
     <button id="tabData" type="button"><span class="icon">📝</span>My Data</button>
+    <button id="tabSettings" type="button"><span class="icon">⚙️</span>Settings</button>
   </div>
 </div>
 
@@ -294,6 +416,8 @@ async function loadAppData() {
   const loadingText = document.getElementById('loadingText');
   const loadingError = document.getElementById('loadingError');
   try {
+    await loadSettings();
+    applyTheme();
     loadingText.textContent = 'Loading Canada federal boundaries…';
     FEDERAL_GEOJSON = await (await fetch('federal.geojson')).json();
 
@@ -347,6 +471,29 @@ async function storageSet(key, value) {
 }
 
 const STORAGE_KEY = 'riding-data-edits';
+
+/* ============== App settings (theme, map style, party colours) ============== */
+const SETTINGS_KEY = 'riding-app-settings';
+const REPO_URL = 'https://github.com/nolifejordan/RidingTracker'; 
+const DEFAULT_SETTINGS = { theme: 'dark', opacity: 0.45, weight: 2.2, partyColors: {} };
+let settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+
+async function loadSettings() {
+  try {
+    const raw = await storageGet(SETTINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      settings = Object.assign({}, DEFAULT_SETTINGS, parsed, { partyColors: Object.assign({}, parsed.partyColors || {}) });
+    }
+  } catch (e) {}
+}
+async function saveSettings() { await storageSet(SETTINGS_KEY, JSON.stringify(settings)); }
+function applyTheme() {
+  const light = settings.theme === 'light';
+  document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark');
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', light ? '#e9ebef' : '#14161c');
+}
 function slugify(name) {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
@@ -369,19 +516,24 @@ function bootApp() {
 
 const tabMap = document.getElementById('tabMap');
 const tabData = document.getElementById('tabData');
+const tabSettings = document.getElementById('tabSettings');
 const mapView = document.getElementById('map-view');
 const dataView = document.getElementById('data-view');
+const settingsView = document.getElementById('settings-view');
 let mapInitialized = false;
 
 function showTab(tab) {
   tabMap.classList.toggle('active', tab === 'map');
   tabData.classList.toggle('active', tab === 'data');
+  tabSettings.classList.toggle('active', tab === 'settings');
   mapView.classList.toggle('active', tab === 'map');
   dataView.classList.toggle('active', tab === 'data');
+  settingsView.classList.toggle('active', tab === 'settings');
   if (tab === 'map' && mapInitialized) setTimeout(() => map.invalidateSize(), 50);
 }
 tabMap.addEventListener('click', () => showTab('map'));
 tabData.addEventListener('click', () => showTab('data'));
+tabSettings.addEventListener('click', () => showTab('settings'));
 
 function ridingSlug(feature, level) {
   if (level === 'caFederal') return slugify(feature.properties.ED_NAMEE || feature.properties.ED_NAME);
@@ -410,38 +562,52 @@ const PROVINCE_COLOR = '#d98a4a'; // shared by all province layers (same "level"
 function styleFor(level) {
   const colors = { caFederal: '#4a90d9', usHouse: '#6b9e5e', usSenate: '#9e5ea8' };
   const color = level === 'caProvincial' ? PROVINCE_COLOR : colors[level];
-  return { color, weight: 2.2, opacity: 1, fillOpacity: 0.08, fillColor: color };
+  return { color, weight: settings.weight, opacity: 1, fillOpacity: 0.08, fillColor: color };
 }
 
 let colorByParty = false;
 
-const PARTY_COLORS = {
-  'liberal': '#d63031', 'conservative': '#2e5fa3',
-  'green': '#27ae60', 'green party': '#27ae60',
-  'bloc quebecois': '#16a085',
-  'independent': '#888888',
-  'non-partisan consensus': '#555555',
-  'ndp': '#e67e22', 'new democratic': '#e67e22', 'new democratic party': '#e67e22',
-  'progressive conservative': '#5e6fc4', 'pc': '#5e6fc4',
-  'ucp': '#16465a', 'ptp': '#4aa3d1',
-  'centrebc': '#d63031', 'onebc': '#d4af37',
-  'yukon party': '#2f6e86',
-  'saskatchewan party': '#1e5631',
-  'pcq': '#4b3d72', 'qs': '#e67e22', 'quebec solidaire': '#e67e22',
-  'pq': '#16a085', 'parti quebecois': '#16a085',
-  'caq': '#0e5c73', 'coalition avenir quebec': '#0e5c73',
+const PARTY_DEFAULTS = [
+  { id: 'liberal', label: 'Liberal', color: '#d63031', synonyms: ['liberal'] },
+  { id: 'conservative', label: 'Conservative (federal / BC)', color: '#2e5fa3', synonyms: ['conservative'] },
+  { id: 'ndp', label: 'NDP', color: '#e67e22', synonyms: ['ndp', 'new democratic', 'new democratic party'] },
+  { id: 'green', label: 'Green', color: '#27ae60', synonyms: ['green', 'green party'] },
+  { id: 'bloc', label: 'Bloc Quebecois', color: '#16a085', synonyms: ['bloc quebecois'] },
+  { id: 'independent', label: 'Independent', color: '#888888', synonyms: ['independent'] },
+  { id: 'nonpartisan', label: 'Non-partisan consensus', color: '#555555', synonyms: ['non-partisan consensus'] },
+  { id: 'progressiveconservative', label: 'Progressive Conservative', color: '#5e6fc4', synonyms: ['progressive conservative', 'pc'] },
+  { id: 'ucp', label: 'UCP (Alberta)', color: '#16465a', synonyms: ['ucp'] },
+  { id: 'ptp', label: 'Progressive Tory Party (Alberta)', color: '#4aa3d1', synonyms: ['ptp'] },
+  { id: 'centrebc', label: 'CentreBC', color: '#d63031', synonyms: ['centrebc'] },
+  { id: 'onebc', label: 'OneBC', color: '#d4af37', synonyms: ['onebc'] },
+  { id: 'yukonparty', label: 'Yukon Party', color: '#2f6e86', synonyms: ['yukon party'] },
+  { id: 'saskparty', label: 'Saskatchewan Party', color: '#1e5631', synonyms: ['saskatchewan party'] },
+  { id: 'pcq', label: 'PCQ (Quebec Conservative)', color: '#4b3d72', synonyms: ['pcq'] },
+  { id: 'qs', label: 'Quebec solidaire', color: '#e67e22', synonyms: ['qs', 'quebec solidaire'] },
+  { id: 'pq', label: 'Parti Quebecois', color: '#16a085', synonyms: ['pq', 'parti quebecois'] },
+  { id: 'caq', label: 'CAQ', color: '#0e5c73', synonyms: ['caq', 'coalition avenir quebec'] },
   // US parties -- darker, more saturated than a typical red/blue pair so
   // they read as distinct from Canada's Liberal red / Conservative blue
   // when both countries are shown together.
-  'republican': '#a3241c', 'democratic': '#173d78',
-};
+  { id: 'republican', label: 'Republican (US)', color: '#a3241c', synonyms: ['republican'] },
+  { id: 'democratic', label: 'Democratic (US)', color: '#173d78', synonyms: ['democratic'] },
+];
 const PARTY_COLOR_FALLBACK = '#cccccc';
+
+let PARTY_COLORS = {};
+function rebuildPartyColors() {
+  PARTY_COLORS = {};
+  for (const p of PARTY_DEFAULTS) {
+    const resolved = (settings.partyColors && settings.partyColors[p.id]) || p.color;
+    for (const syn of p.synonyms) PARTY_COLORS[syn] = resolved;
+  }
+}
 
 function normalizeParty(party) {
   return (party || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 function colorForParty(party) { return PARTY_COLORS[normalizeParty(party)] || PARTY_COLOR_FALLBACK; }
-function partyStyleFor() { return { color: '#000000', weight: 2.2, opacity: 1, fillOpacity: 0.45 }; }
+function partyStyleFor() { return { color: '#000000', weight: settings.weight, opacity: 1, fillOpacity: settings.opacity }; }
 
 // Split-party states (two senators from different parties) get a diagonal
 // stripe pattern instead of a solid fill, so the map distinguishes them
@@ -1063,7 +1229,88 @@ document.getElementById('importFile').addEventListener('change', async (evt) => 
   evt.target.value = '';
 });
 
+/* ============== Settings view ============== */
+const optOpacity = document.getElementById('settingOpacity');
+const optWeight = document.getElementById('settingWeight');
+const partyColorList = document.getElementById('partyColorList');
+const settingsStatus = document.getElementById('settingsStatusMsg');
+const btnThemeDark = document.getElementById('btnThemeDark');
+const btnThemeLight = document.getElementById('btnThemeLight');
+
+function flashSettingsStatus(msg) {
+  settingsStatus.textContent = msg;
+  settingsStatus.style.color = '#6bbf87';
+  setTimeout(() => { if (settingsStatus.textContent === msg) settingsStatus.textContent = ''; }, 2500);
+}
+
+function buildPartyColorRows() {
+  partyColorList.innerHTML = '';
+  for (const p of PARTY_DEFAULTS) {
+    const row = document.createElement('div');
+    row.className = 'party-color-row';
+    const current = (settings.partyColors && settings.partyColors[p.id]) || p.color;
+    row.innerHTML = `<span>${p.label}</span><input type="color" value="${current}">`;
+    partyColorList.appendChild(row);
+    // 'change' (fires when the picker is committed) rather than 'input' (fires
+    // continuously while dragging) -- restyling ~1,500 polygons per drag tick would lag.
+    row.querySelector('input').addEventListener('change', async (e) => {
+      settings.partyColors[p.id] = e.target.value;
+      rebuildPartyColors();
+      await saveSettings();
+      await refreshColoring();
+    });
+  }
+}
+
+function bindNumberSetting(input, key, min, max) {
+  input.value = settings[key];
+  input.addEventListener('change', async () => {
+    let v = parseFloat(input.value);
+    if (isNaN(v)) v = DEFAULT_SETTINGS[key];
+    v = Math.min(max, Math.max(min, v));
+    input.value = v;
+    settings[key] = v;
+    await saveSettings();
+    await refreshColoring();
+  });
+}
+
+function syncThemeButtons() {
+  btnThemeDark.classList.toggle('active', settings.theme !== 'light');
+  btnThemeLight.classList.toggle('active', settings.theme === 'light');
+}
+async function setTheme(theme) {
+  settings.theme = theme;
+  applyTheme();
+  syncThemeButtons();
+  await saveSettings();
+}
+btnThemeDark.addEventListener('click', () => setTheme('dark'));
+btnThemeLight.addEventListener('click', () => setTheme('light'));
+
+document.getElementById('btnResetMapSettings').addEventListener('click', async () => {
+  settings.opacity = DEFAULT_SETTINGS.opacity;
+  settings.weight = DEFAULT_SETTINGS.weight;
+  settings.partyColors = {};
+  optOpacity.value = settings.opacity;
+  optWeight.value = settings.weight;
+  rebuildPartyColors();
+  buildPartyColorRows();
+  await saveSettings();
+  await refreshColoring();
+  flashSettingsStatus('Map settings reset to default.');
+});
+
+const aboutLink = document.getElementById('aboutRepoLink');
+if (REPO_URL) { aboutLink.href = REPO_URL; aboutLink.textContent = REPO_URL; }
+else { aboutLink.removeAttribute('href'); aboutLink.textContent = 'Repository link not set yet'; }
+
 /* ---- Boot ---- */
+rebuildPartyColors();
+bindNumberSetting(optOpacity, 'opacity', 0, 1);
+bindNumberSetting(optWeight, 'weight', 0.5, 6);
+buildPartyColorRows();
+syncThemeButtons();
 showBackendStatus();
 populateRidingSelect();
 loadRidingIntoForm(ridingSelect.value);
