@@ -1,0 +1,29 @@
+{
+  "general": [
+    { "name": "Canada (federal)", "group": "Federal", "date": "2029-10-15" },
+    { "name": "US House", "group": "Federal", "date": "2026-11-03", "note": "All 435 seats" },
+    { "name": "US Senate", "group": "Federal", "date": "2026-11-03", "note": "35 of 100 seats" },
+
+    { "name": "Prince Edward Island", "group": "Provincial", "date": "2027-10-04" },
+    { "name": "Manitoba", "group": "Provincial", "date": "2027-10-05" },
+    { "name": "Northwest Territories", "group": "Provincial", "date": "2027-10-05" },
+    { "name": "Alberta", "group": "Provincial", "date": "2027-10-18" },
+    { "name": "New Brunswick", "group": "Provincial", "date": "2028-10-23" },
+    { "name": "Saskatchewan", "group": "Provincial", "date": "2028-10-30" },
+    { "name": "Newfoundland and Labrador", "group": "Provincial", "date": "2029-10-09" },
+    { "name": "Nunavut", "group": "Provincial", "date": "2029-10-29" },
+    { "name": "Yukon", "group": "Provincial", "date": "2029-11-05" },
+    { "name": "Nova Scotia", "group": "Provincial", "date": "2029-12-07" },
+    { "name": "Ontario", "group": "Provincial", "date": "2030-04-11", "note": "Latest possible date (fixed-date law repealed in 2025)" },
+    { "name": "Quebec", "group": "Provincial", "date": "2030-10-07" },
+    { "name": "British Columbia", "group": "Provincial", "date": "2030-10-19" }
+  ],
+  "byElections": [
+    { "riding": "Saint-Hyacinthe—Bagot—Acton", "province": "Quebec", "latestCall": "2026-12-19", "latestPoll": "2027-02-01" },
+    { "riding": "Scarborough North", "province": "Ontario", "latestCall": "2027-02-13", "latestPoll": "2027-03-29" },
+    { "riding": "Rosemont—La Petite-Patrie", "province": "Quebec", "latestCall": "2027-02-22", "latestPoll": "2027-04-12" },
+    { "riding": "Laurier—Sainte-Marie", "province": "Quebec", "latestCall": "2027-02-27", "latestPoll": "2027-04-12" },
+    { "riding": "Yorkton—Melville", "province": "Saskatchewan", "latestCall": "2027-02-28", "latestPoll": "2027-04-19" },
+    { "riding": "Brantford—Brant South", "province": "Ontario", "latestCall": "2027-03-20", "latestPoll": "2027-05-03" }
+  ]
+}
