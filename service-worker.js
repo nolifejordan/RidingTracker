@@ -1,5 +1,5 @@
 // Bumping CACHE_NAME forces a refresh of all cached files on next load.
-const CACHE_NAME = 'riding-tracker-v4';
+const CACHE_NAME = 'riding-tracker-v5';
 
 const APP_SHELL = [
   './index.html',
@@ -8,7 +8,8 @@ const APP_SHELL = [
   './provincial.geojson',
   './us-house.geojson',
   './us-states.geojson',
-  './riding-data.json'
+  './riding-data.json',
+  './election-dates.json'
 ];
 
 self.addEventListener('install', (event) => {

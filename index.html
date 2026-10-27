@@ -140,7 +140,7 @@
   .popup-notes { font-size: 12px; color: var(--text-primary); margin-top: 6px; }
   .popup-dispute { font-size: 12px; color: #d19a1f; margin-top: 6px; }
 
-  #data-view, #settings-view { padding: 16px; padding-bottom: 24px; }
+  #data-view, #settings-view, #countdown-view { padding: 16px; padding-bottom: 24px; }
   h1 { font-size: 18px; margin-bottom: 4px; }
   h2.section-title { font-size: 14px; margin: 20px 0 10px; color: var(--heading-accent); text-transform: uppercase; letter-spacing: 0.05em; }
   h2.section-title:first-child { margin-top: 0; }
@@ -181,6 +181,16 @@
   .senate-pair { display: flex; gap: 8px; }
   .senate-pair > div { flex: 1; }
   #senateFields.hidden, #singleFields.hidden { display: none; }
+
+  /* ---- Countdown view ---- */
+  .cd-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-color-alt); }
+  .cd-row:last-child { border-bottom: none; }
+  .cd-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+  .cd-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .cd-count { text-align: right; font-size: 14px; font-weight: 700; color: var(--accent); max-width: 48%; }
+  .cd-count small { display: block; font-size: 11px; font-weight: 500; color: var(--text-tertiary); margin-top: 2px; }
+  .cd-count.pending { color: #d19a1f; }
+  .cd-footnote { font-size: 12px; color: var(--text-tertiary); line-height: 1.5; }
 
   /* ---- Settings view ---- */
   .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-color-alt); gap: 12px; }
@@ -335,6 +345,18 @@
       </div>
     </div>
 
+    <div id="countdown-view" class="view">
+      <h1>Election Countdown</h1>
+      <div class="subtitle">Next scheduled elections, based on each jurisdiction's fixed-date law and treated as a deadline.</div>
+      <h2 class="section-title">Federal</h2>
+      <div class="card" id="cdFederal"></div>
+      <h2 class="section-title">Provincial &amp; territorial</h2>
+      <div class="card" id="cdProvincial"></div>
+      <h2 class="section-title">Pending federal by-elections</h2>
+      <div class="card" id="cdByElections"></div>
+      <div class="cd-footnote">An early election replaces the date shown. By-elections show the latest possible polling date until one is called.</div>
+    </div>
+
     <div id="settings-view" class="view">
       <h1>Settings</h1>
       <div class="subtitle">Customize how the map looks. Changes apply immediately.</div>
@@ -401,6 +423,7 @@
 
   <div id="tabbar">
     <button id="tabMap" class="active" type="button"><span class="icon">🗺️</span>Map</button>
+    <button id="tabCountdown" type="button"><span class="icon">⏳</span>Countdown</button>
     <button id="tabData" type="button"><span class="icon">📝</span>My Data</button>
     <button id="tabSettings" type="button"><span class="icon">⚙️</span>Settings</button>
   </div>
@@ -410,7 +433,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
 <script>
 /* ============== Data loading ============== */
-let FEDERAL_GEOJSON, PROVINCIAL_GEOJSON, US_HOUSE_GEOJSON, US_STATES_GEOJSON, DATA;
+let FEDERAL_GEOJSON, PROVINCIAL_GEOJSON, US_HOUSE_GEOJSON, US_STATES_GEOJSON, DATA, ELECTION_DATES = null;
 
 async function loadAppData() {
   const loadingText = document.getElementById('loadingText');
@@ -432,6 +455,9 @@ async function loadAppData() {
 
     loadingText.textContent = 'Loading representative data…';
     DATA = await (await fetch('riding-data.json')).json();
+
+    // Countdown data is optional: if it fails to load, only that tab is affected.
+    try { ELECTION_DATES = await (await fetch('election-dates.json')).json(); } catch (e) { ELECTION_DATES = null; }
 
     document.getElementById('loadingScreen').classList.add('hidden');
     document.getElementById('app').style.display = 'flex';
@@ -472,9 +498,36 @@ async function storageSet(key, value) {
 
 const STORAGE_KEY = 'riding-data-edits';
 
+/*CD_HELPERS_START*/
+function parseLocalDate(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+function startOfToday(now) { const t = now || new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); }
+function daysUntil(dateStr, now) { return Math.round((parseLocalDate(dateStr) - startOfToday(now)) / 86400000); }
+function calendarDiff(from, to) {
+  let y = to.getFullYear() - from.getFullYear();
+  let m = to.getMonth() - from.getMonth();
+  let d = to.getDate() - from.getDate();
+  if (d < 0) { m--; d += new Date(to.getFullYear(), to.getMonth(), 0).getDate(); }
+  if (m < 0) { y--; m += 12; }
+  return { y, m, d };
+}
+function formatCountdown(dateStr, now) {
+  const days = daysUntil(dateStr, now);
+  if (days < 0) return { main: 'Date passed', sub: '' };
+  if (days === 0) return { main: 'Today', sub: '' };
+  if (days === 1) return { main: 'Tomorrow', sub: '' };
+  if (days < 60) return { main: days + ' days', sub: '' };
+  const diff = calendarDiff(startOfToday(now), parseLocalDate(dateStr));
+  const main = diff.y > 0 ? diff.y + ' yr ' + diff.m + ' mo' : diff.m + ' mo ' + diff.d + ' d';
+  return { main, sub: days.toLocaleString('en-CA') + ' days' };
+}
+function formatLongDate(dateStr) {
+  return parseLocalDate(dateStr).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' });
+}
+/*CD_HELPERS_END*/
+
 /* ============== App settings (theme, map style, party colours) ============== */
 const SETTINGS_KEY = 'riding-app-settings';
-const REPO_URL = 'https://github.com/nolifejordan/RidingTracker'; 
+const REPO_URL = ''; // e.g. 'https://github.com/yourname/riding-tracker' -- shown in Settings > About
 const DEFAULT_SETTINGS = { theme: 'dark', opacity: 0.45, weight: 2.2, partyColors: {} };
 let settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
 
@@ -516,23 +569,29 @@ function bootApp() {
 
 const tabMap = document.getElementById('tabMap');
 const tabData = document.getElementById('tabData');
+const tabCountdown = document.getElementById('tabCountdown');
 const tabSettings = document.getElementById('tabSettings');
 const mapView = document.getElementById('map-view');
 const dataView = document.getElementById('data-view');
+const countdownView = document.getElementById('countdown-view');
 const settingsView = document.getElementById('settings-view');
 let mapInitialized = false;
 
 function showTab(tab) {
   tabMap.classList.toggle('active', tab === 'map');
   tabData.classList.toggle('active', tab === 'data');
+  tabCountdown.classList.toggle('active', tab === 'countdown');
   tabSettings.classList.toggle('active', tab === 'settings');
   mapView.classList.toggle('active', tab === 'map');
   dataView.classList.toggle('active', tab === 'data');
+  countdownView.classList.toggle('active', tab === 'countdown');
   settingsView.classList.toggle('active', tab === 'settings');
+  if (tab === 'countdown') renderCountdown();
   if (tab === 'map' && mapInitialized) setTimeout(() => map.invalidateSize(), 50);
 }
 tabMap.addEventListener('click', () => showTab('map'));
 tabData.addEventListener('click', () => showTab('data'));
+tabCountdown.addEventListener('click', () => showTab('countdown'));
 tabSettings.addEventListener('click', () => showTab('settings'));
 
 function ridingSlug(feature, level) {
@@ -1228,6 +1287,53 @@ document.getElementById('importFile').addEventListener('change', async (evt) => 
   }
   evt.target.value = '';
 });
+
+/* ============== Countdown view ============== */
+function cdRow(name, sub, countMain, countSub, pending) {
+  const row = document.createElement('div');
+  row.className = 'cd-row';
+  const left = document.createElement('div');
+  const n = document.createElement('div'); n.className = 'cd-name'; n.textContent = name;
+  const s = document.createElement('div'); s.className = 'cd-sub'; s.textContent = sub;
+  left.appendChild(n); left.appendChild(s);
+  const right = document.createElement('div');
+  right.className = 'cd-count' + (pending ? ' pending' : '');
+  right.textContent = countMain;
+  if (countSub) { const small = document.createElement('small'); small.textContent = countSub; right.appendChild(small); }
+  row.appendChild(left); row.appendChild(right);
+  return row;
+}
+
+function renderCountdown() {
+  const fed = document.getElementById('cdFederal');
+  const prov = document.getElementById('cdProvincial');
+  const bye = document.getElementById('cdByElections');
+  [fed, prov, bye].forEach(el => { el.innerHTML = ''; });
+
+  if (!ELECTION_DATES) {
+    fed.innerHTML = '<div class="empty-note">Election dates could not be loaded.</div>';
+    return;
+  }
+  const byGroup = { Federal: [], Provincial: [] };
+  for (const e of ELECTION_DATES.general) (byGroup[e.group] || []).push(e);
+  for (const [group, el] of [['Federal', fed], ['Provincial', prov]]) {
+    byGroup[group].sort((a, b) => a.date.localeCompare(b.date));
+    for (const e of byGroup[group]) {
+      const cd = formatCountdown(e.date);
+      const sub = formatLongDate(e.date) + (e.note ? ' · ' + e.note : '');
+      el.appendChild(cdRow(e.name, sub, cd.main, cd.sub, false));
+    }
+  }
+
+  const list = (ELECTION_DATES.byElections || []).slice().sort((a, b) => a.latestPoll.localeCompare(b.latestPoll));
+  if (!list.length) { bye.innerHTML = '<div class="empty-note">No pending by-elections.</div>'; return; }
+  for (const b of list) {
+    const left = daysUntil(b.latestPoll);
+    const sub = b.province + ' · must be called by ' + formatLongDate(b.latestCall);
+    const note = 'Latest: ' + formatLongDate(b.latestPoll) + (left >= 0 ? ' (' + left.toLocaleString('en-CA') + ' days)' : '');
+    bye.appendChild(cdRow(b.riding, sub, 'Pending', note, true));
+  }
+}
 
 /* ============== Settings view ============== */
 const optOpacity = document.getElementById('settingOpacity');
