@@ -704,6 +704,13 @@ function getStripeFill(colorA, colorB) {
   stripePatternCache[key] = id;
   return `url(#${id})`;
 }
+// Incoming senators (won the Nov 2026 election, sworn in Jan 3, 2027) carry elect:true.
+function withElectFlag(s) {
+  const base = (DATA.usSenate[currentSlug] || {}).senators || [];
+  return base.some(b => b.elect && b.rep === s.rep) ? Object.assign(s, { elect: true }) : s;
+}
+function senatorWithParty(s) { return `${s.rep} (${s.party}${s.elect ? ', elect' : ''})`; }
+function senatorLabel(s) { return s.rep + (s.elect ? ' (elect)' : ''); }
 function fillForSenateEntry(entry) {
   if (!entry || !entry.senators) return PARTY_COLOR_FALLBACK;
   const c1 = colorForParty(entry.senators[0].party);
@@ -758,7 +765,7 @@ async function buildPopupContent(feature, level) {
     let html = `<div class="popup-title">${entry ? entry.name : name} (Senate)</div>`;
     if (entry && entry.senators) {
       entry.senators.forEach(s => {
-        html += `<div class="popup-sub">${s.rep} · ${s.party}</div>`;
+        html += `<div class="popup-sub">${senatorLabel(s)} · ${s.party}</div>`;
       });
       if (userEntry && userEntry.notes) {
         html += `<div class="popup-notes">${userEntry.notes}</div>`;
@@ -1016,7 +1023,7 @@ async function updateRidingInfo(lat, lon) {
       const entry = getEntry('usSenate', slug, userData);
       if (entry) {
         nameEl.textContent = entry.name; nameEl.classList.remove('placeholder');
-        detailEl.textContent = entry.senators.map(s => `${s.rep} (${s.party})`).join(' · ');
+        detailEl.textContent = entry.senators.map(senatorWithParty).join(' · ');
       } else {
         nameEl.textContent = feature.properties.name; nameEl.classList.remove('placeholder');
         detailEl.textContent = 'No data';
@@ -1196,8 +1203,8 @@ document.getElementById('btnSave').addEventListener('click', async () => {
     entry = {
       name,
       senators: [
-        { rep: fields.sen1Name.value.trim(), party: fields.sen1Party.value.trim() },
-        { rep: fields.sen2Name.value.trim(), party: fields.sen2Party.value.trim() },
+        withElectFlag({ rep: fields.sen1Name.value.trim(), party: fields.sen1Party.value.trim() }),
+        withElectFlag({ rep: fields.sen2Name.value.trim(), party: fields.sen2Party.value.trim() }),
       ],
       termStart: fields.termStart.value,
       notes: fields.notes.value.trim(),
@@ -1238,7 +1245,7 @@ async function renderCustomList() {
   slugs.forEach(slug => {
     const e = entries[slug];
     const sub = e.senators
-      ? e.senators.map(s => `${s.rep} (${s.party})`).join(' · ')
+      ? e.senators.map(senatorWithParty).join(' · ')
       : `${e.rep || '—'} · ${e.party || '—'}${e.termStart ? ' · since ' + e.termStart : ''}`;
     const row = document.createElement('div');
     row.className = 'entry-item';
