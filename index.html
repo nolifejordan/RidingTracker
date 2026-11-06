@@ -352,7 +352,7 @@
       <div class="card" id="cdFederal"></div>
       <h2 class="section-title">Provincial &amp; territorial</h2>
       <div class="card" id="cdProvincial"></div>
-      <h2 class="section-title">Pending federal by-elections</h2>
+      <h2 class="section-title">Federal by-elections</h2>
       <div class="card" id="cdByElections"></div>
       <div class="cd-footnote">An early election replaces the date shown. By-elections show the latest possible polling date until one is called.</div>
     </div>
@@ -1332,13 +1332,20 @@ function renderCountdown() {
     }
   }
 
-  const list = (ELECTION_DATES.byElections || []).slice().sort((a, b) => a.latestPoll.localeCompare(b.latestPoll));
-  if (!list.length) { bye.innerHTML = '<div class="empty-note">No pending by-elections.</div>'; return; }
+  // A by-election with a "date" has been called; one without it is still pending and
+  // shows the latest possible polling date instead.
+  const list = (ELECTION_DATES.byElections || []).slice().sort((a, b) => (a.date || a.latestPoll).localeCompare(b.date || b.latestPoll));
+  if (!list.length) { bye.innerHTML = '<div class="empty-note">No by-elections pending.</div>'; return; }
   for (const b of list) {
-    const left = daysUntil(b.latestPoll);
-    const sub = b.province + ' · must be called by ' + formatLongDate(b.latestCall);
-    const note = 'Latest: ' + formatLongDate(b.latestPoll) + (left >= 0 ? ' (' + left.toLocaleString('en-CA') + ' days)' : '');
-    bye.appendChild(cdRow(b.riding, sub, 'Pending', note, true));
+    if (b.date) {
+      const cd = formatCountdown(b.date);
+      bye.appendChild(cdRow(b.riding, b.province + ' · ' + formatLongDate(b.date), cd.main, cd.sub, false));
+    } else {
+      const left = daysUntil(b.latestPoll);
+      const sub = b.province + ' · must be called by ' + formatLongDate(b.latestCall);
+      const note = 'Latest: ' + formatLongDate(b.latestPoll) + (left >= 0 ? ' (' + left.toLocaleString('en-CA') + ' days)' : '');
+      bye.appendChild(cdRow(b.riding, sub, 'Pending', note, true));
+    }
   }
 }
 
